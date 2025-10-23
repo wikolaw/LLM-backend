@@ -1,0 +1,127 @@
+ENTREPRENADKONTRAKT
+Drift och underhåll av Arlandabanan
+
+Kontraktsnamn: Arlandabanan DOU 2024-2028
+Anläggning: Arlandabanan Stockholm-Arlanda Airport
+Kontraktstyp: Driftentreprenad med funktionsansvar
+
+Datum tecknat: 2024-01-15
+Giltighetsperiod: 2024-03-01 till 2028-02-28
+Kontraktslängd: 4 år
+
+PARTER
+
+Beställare:
+Namn: Trafikverket
+Organisationsnummer: 202100-6297
+Kontaktperson: Anna Svensson
+Titel: Kontraktsansvarig
+Adress: Solna Strandväg 98, 171 54 Solna
+
+Entreprenör:
+Namn: Infranord AB
+Organisationsnummer: 556076-2962
+Kontaktperson: Erik Andersson
+Titel: Projektchef
+Adress: Box 1803, 171 23 Solna
+
+OMFATTNING
+
+Entreprenaden omfattar drift och underhåll av järnvägsinfrastrukturen på Arlandabanan mellan Stockholm City och Arlanda flygplats. Detta inkluderar:
+
+- Spårlängd: 42 kilometer dubbelspår
+- Spårtyp: BV50 räls på betongsliprar
+- Antal växlar: 18 st
+- Tekniska system: Kontaktledning 15kV, ATC-säkerhetssystem, fiber och teleteknik
+- Tunnel: Arlandatunneln 6,2 km
+
+EKONOMISKA VILLKOR
+
+Årlig ersättning: 24 500 000 SEK
+Valuta: SEK (Svenska kronor)
+
+Indexjustering:
+- Typ: Trafikverkets driftindex (TDI)
+- Frekvens: Årligen per 1 januari
+- Basår: 2024
+
+Kostnader för avfall, deponi och destruktion:
+- Ingår i fast ersättning upp till 50 ton/år
+- Överstigande mängder ersätts enligt särskild prislista
+
+ANSVAR OCH REGELVERK
+
+Entreprenörens ansvar:
+- Daglig tillsyn och kontroll av anläggningen
+- Förebyggande underhåll enligt fastställd plan
+- Avhjälpande underhåll vid fel och brister
+- Snöröjning och halkbekämpning
+- Felanmälan och avhjälpande åtgärder inom 2 timmar
+- Dokumentation i Banis (Trafikverkets baninfosystem)
+
+Beställarens ansvar:
+- Tillhandahålla arbetsorder och planer
+- Godkänna större underhållsarbeten
+- Tillhandahålla BIS-system (Baninfo-systemet)
+- Tillsyn och kvalitetskontroll
+
+Tillämpliga regelverk:
+- ABT 06 (Allmänna bestämmelser för totalentreprenad)
+- BVS (Banverkets standarder)
+- TDOK (Trafikverkets dokument)
+- AFS 2001:1 (Systematiskt arbetsmiljöarbete)
+
+KVALITET OCH SÄKERHET
+
+Certifieringar:
+- ISO 9001:2015 (Kvalitetsledning)
+- ISO 14001:2015 (Miljöledning)
+- ISO 45001:2018 (Arbetsmiljö)
+
+Utbildningskrav:
+- Giltigt hjälmarkorttillstånd för samtlig personal
+- Spårområdesbehörighet enligt TDOK 2007:0323
+- Maskinförarutbildning för underhållsfordon
+- Elsäkerhetsutbildning för arbete nära kontaktledning
+
+Miljö- och ledningssystem:
+- Miljöplan enligt ISO 14001
+- Avfallsplan med källsortering
+- Kemikaliehanteringsplan
+- Incidentrapportering till Trafikverket inom 24 timmar
+
+ÄNDRINGAR OCH TILLÄGGSARBETEN
+
+Reglering av ändringar:
+- Mindre arbeten under 100 000 SEK: Skriftlig order från beställaren
+- Större arbeten över 100 000 SEK: Separat tilläggsavtal krävs
+- Prisändring vid större omfattningsförändring (över 15%)
+
+Kostnadsfördelning:
+- Planerade ändringar: Beställaren står kostnaden
+- Oförutsedda händelser: Enligt ABT 06 §38-41
+
+BILAGOR
+
+1. Teknisk beskrivning av anläggningen
+2. Underhållsplan 2024-2028
+3. Prislista för tilläggsarbeten
+4. Kontaktlista nyckelspersoner
+5. Karta över ansvarsgränser
+6. Miljökrav och kvalitetsspecifikationer
+7. Trafikeringsplan och stängningsfönster
+8. It-systemdokumentation (Banis/BIS)
+
+UNDERSKRIFTER
+
+För Trafikverket:
+Anna Svensson, Kontraktsansvarig
+Datum: 2024-01-15
+
+För Infranord AB:
+Erik Andersson, Projektchef
+Datum: 2024-01-15
+
+Bevittnad av:
+Maria Johansson, Jurist Trafikverket
+Datum: 2024-01-15
