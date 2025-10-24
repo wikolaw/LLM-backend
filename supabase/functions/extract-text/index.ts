@@ -1,9 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-// @deno-types="npm:@types/mammoth@1.0.5"
-import mammoth from 'npm:mammoth@1.8.0'
-import * as pdfjsLib from 'npm:pdfjs-dist@4.10.38'
 
 interface ExtractRequest {
   documentId: string
@@ -41,59 +38,18 @@ serve(async (req) => {
     if (mimeType === 'text/plain') {
       // Plain text - simple read
       extractedText = await fileData.text()
-    } else if (mimeType === 'application/pdf') {
-      // Extract text from PDF using pdf.js
-      try {
-        const arrayBuffer = await fileData.arrayBuffer()
-        const typedArray = new Uint8Array(arrayBuffer)
-
-        // Load PDF document
-        const loadingTask = pdfjsLib.getDocument({ data: typedArray })
-        const pdfDocument = await loadingTask.promise
-
-        const textParts: string[] = []
-
-        // Extract text from each page
-        for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-          const page = await pdfDocument.getPage(pageNum)
-          const textContent = await page.getTextContent()
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ')
-          textParts.push(pageText)
-        }
-
-        extractedText = textParts.join('\n').trim()
-
-        if (extractedText.length < 10) {
-          throw new Error('PDF appears to be empty or contains only images')
-        }
-      } catch (pdfError) {
-        throw new Error(`PDF extraction failed: ${pdfError.message}`)
-      }
-    } else if (
-      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      mimeType === 'application/msword'
-    ) {
-      // Extract text from DOCX using mammoth
-      try {
-        const arrayBuffer = await fileData.arrayBuffer()
-        const result = await mammoth.extractRawText({ arrayBuffer })
-        extractedText = result.value.trim()
-
-        if (extractedText.length < 10) {
-          throw new Error('DOCX appears to be empty')
-        }
-
-        // Log any warnings from mammoth
-        if (result.messages.length > 0) {
-          console.log('Mammoth warnings:', result.messages)
-        }
-      } catch (docxError) {
-        throw new Error(`DOCX extraction failed: ${docxError.message}`)
-      }
+    } else if (mimeType === 'application/pdf' ||
+               mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+               mimeType === 'application/msword') {
+      // For PDF/DOCX: Temporary limitation - recommend converting to TXT
+      // TODO: Integrate with pdf.co or similar API for production
+      throw new Error(
+        `PDF and DOCX extraction is not yet implemented in the serverless environment. ` +
+        `Please convert your ${mimeType.includes('pdf') ? 'PDF' : 'DOCX'} file to TXT format first. ` +
+        `You can use: https://convertio.co/pdf-txt/ or https://convertio.co/docx-txt/`
+      )
     } else {
-      throw new Error(`Unsupported file type: ${mimeType}`)
+      throw new Error(`Unsupported file type: ${mimeType}. Currently only TXT files are supported.`)
     }
 
     // Update document with extracted text

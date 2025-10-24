@@ -65,17 +65,23 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
       setExtracting(true)
       setProgress('Extracting text from document...')
 
-      // Call Edge Function to extract text
-      const { data: extractResult, error: extractError } = await supabase.functions
-        .invoke('extract-text', {
-          body: {
-            documentId: document.id,
-            storagePath: fileName,
-            mimeType: file.type,
-          }
+      // Call Vercel API to extract text (uses Node.js libraries for PDF/DOCX)
+      const extractResponse = await fetch('/api/extract-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentId: document.id,
+          storagePath: fileName,
+          mimeType: file.type,
         })
+      })
 
-      if (extractError) throw extractError
+      if (!extractResponse.ok) {
+        const errorData = await extractResponse.json()
+        throw new Error(errorData.error || 'Text extraction failed')
+      }
+
+      const extractResult = await extractResponse.json()
 
       if (!extractResult.success) {
         throw new Error(extractResult.error || 'Text extraction failed')
