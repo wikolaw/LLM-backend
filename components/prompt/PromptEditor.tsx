@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { getSystemPrompt, FORMAT_RECOMMENDATIONS, type OutputFormat } from '@/lib/schemas/extraction'
 import { isValidJSONSchema } from '@/lib/validation/schema-validator'
+import { InfoIcon } from '@/components/ui/InfoIcon'
 
 interface PromptEditorProps {
   onConfigChange: (config: {
@@ -165,9 +166,12 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
     <div className="space-y-6">
       {/* Step 1: Output Format Selection */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          1. Choose Output Format
-        </label>
+        <div className="flex items-center gap-2 mb-3">
+          <label className="block text-sm font-medium text-gray-700">
+            1. Choose Output Format
+          </label>
+          <InfoIcon tooltip="JSON outputs a single object (best for one record), while JSON Lines outputs multiple objects separated by newlines (best for lists)." />
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => handleFormatChange('json')}
@@ -177,13 +181,19 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
-            <div className="font-semibold text-gray-900 mb-1">{formatRec.title}</div>
-            <div className="text-sm text-gray-600 mb-2">{formatRec.description}</div>
-            <ul className="text-xs text-gray-500 space-y-1">
-              {formatRec.pros.map((pro, i) => (
-                <li key={i}>✓ {pro}</li>
-              ))}
-            </ul>
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-semibold text-gray-900">{formatRec.title}</div>
+              <InfoIcon
+                tooltip={
+                  <ul className="space-y-1">
+                    {formatRec.pros.map((pro, i) => (
+                      <li key={i}>✓ {pro}</li>
+                    ))}
+                  </ul>
+                }
+              />
+            </div>
+            <div className="text-sm text-gray-600">{formatRec.description}</div>
           </button>
 
           <button
@@ -194,36 +204,42 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
-            <div className="font-semibold text-gray-900 mb-1">
-              {FORMAT_RECOMMENDATIONS.jsonl.title}
+            <div className="flex items-center justify-between mb-1">
+              <div className="font-semibold text-gray-900">
+                {FORMAT_RECOMMENDATIONS.jsonl.title}
+              </div>
+              <InfoIcon
+                tooltip={
+                  <ul className="space-y-1">
+                    {FORMAT_RECOMMENDATIONS.jsonl.pros.map((pro, i) => (
+                      <li key={i}>✓ {pro}</li>
+                    ))}
+                  </ul>
+                }
+              />
             </div>
-            <div className="text-sm text-gray-600 mb-2">
+            <div className="text-sm text-gray-600">
               {FORMAT_RECOMMENDATIONS.jsonl.description}
             </div>
-            <ul className="text-xs text-gray-500 space-y-1">
-              {FORMAT_RECOMMENDATIONS.jsonl.pros.map((pro, i) => (
-                <li key={i}>✓ {pro}</li>
-              ))}
-            </ul>
           </button>
         </div>
       </div>
 
       {/* Step 2: User Input */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          2. What do you want to extract?
-        </label>
+        <div className="flex items-center gap-2 mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            2. What do you want to extract?
+          </label>
+          <InfoIcon tooltip="Describe the fields you need in natural language. Example: 'Extract contract name, parties, dates, and monetary values.' The AI will optimize this into a structured prompt with explicit types." />
+        </div>
         <textarea
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
           placeholder="Example: Extract contract name, parties, dates, and monetary values from Swedish railway infrastructure contracts"
           className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-gray-500">
-            Describe the information you want to extract in plain language
-          </p>
+        <div className="flex items-center justify-end mt-2">
           <button
             onClick={handleOptimizePrompt}
             disabled={!userInput.trim() || isOptimizing}
@@ -237,18 +253,18 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
       {/* Step 3: Optimized Prompt (appears after optimization) */}
       {optimizedPrompt && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            3. Optimized Extraction Prompt (editable)
-          </label>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              3. Optimized Extraction Prompt (editable)
+            </label>
+            <InfoIcon tooltip="AI has added explicit field names, data types (string, number, object), and format requirements (e.g., YYYY-MM-DD for dates). Edit if needed before generating the schema." />
+          </div>
           <textarea
             value={optimizedPrompt}
             onChange={(e) => handleOptimizedPromptEdit(e.target.value)}
             className="w-full h-40 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
           />
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-gray-500">
-              AI-enhanced prompt with explicit fields, types, and format requirements
-            </p>
+          <div className="flex items-center justify-end mt-2">
             <button
               onClick={handleGenerateSchema}
               disabled={isGeneratingSchema}
@@ -263,9 +279,12 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
       {/* Step 4: JSON Schema (appears after generation) */}
       {jsonSchema && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            4. JSON Schema for Validation (editable)
-          </label>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              4. JSON Schema for Validation (editable)
+            </label>
+            <InfoIcon tooltip="This JSON Schema (draft-07) validates all model outputs. All responses must match this structure to pass validation. Edit carefully - invalid schemas will prevent execution." />
+          </div>
           {!schemaValid && (
             <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-800">
@@ -282,9 +301,6 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
                 : 'border-red-300 bg-red-50 focus:ring-red-500'
             }`}
           />
-          <p className="text-xs text-gray-500 mt-2">
-            This schema will validate all LLM responses. Make sure it matches your extraction requirements.
-          </p>
         </div>
       )}
 

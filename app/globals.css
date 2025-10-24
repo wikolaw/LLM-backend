@@ -20,6 +20,41 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+@layer components {
+  /* Focus rings (WCAG 2.1 compliance) */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  /* Button states */
+  .btn-primary {
+    @apply bg-primary-600 text-white font-medium px-6 py-2 rounded-lg;
+    @apply hover:bg-primary-700 active:bg-primary-800;
+    @apply transition-colors duration-150;
+    @apply focus-ring;
+    @apply disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 font-medium px-6 py-2 rounded-lg;
+    @apply border border-gray-300 hover:border-gray-400 hover:bg-gray-50;
+    @apply active:bg-gray-100;
+    @apply transition-colors duration-150;
+    @apply focus-ring;
+  }
+
+  /* Card hover states */
+  .card-interactive {
+    @apply transition-all duration-200;
+    @apply hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  /* Tooltip cursor */
+  .cursor-help {
+    cursor: help;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

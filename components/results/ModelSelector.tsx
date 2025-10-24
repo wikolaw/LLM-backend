@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/types'
+import { InfoIcon } from '@/components/ui/InfoIcon'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 type Model = Database['public']['Tables']['models']['Row']
 
@@ -136,15 +138,17 @@ export function ModelSelector({ onSelectionChange, estimatedTokens = 1000 }: Mod
                 </span>
               )}
               {model.supports_json_mode && (
-                <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 rounded">
-                  JSON
-                </span>
+                <Tooltip content="This model natively supports JSON mode for more reliable structured output">
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 rounded cursor-help">
+                    JSON
+                  </span>
+                </Tooltip>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               {model.provider} / {model.name}
             </p>
-            <div className="mt-2 flex gap-4 text-xs text-gray-600">
+            <div className="mt-2 flex gap-4 text-xs text-gray-700">
               <span>Context: {(model.context_window / 1000).toFixed(0)}K</span>
               {!isFree && (
                 <span>
@@ -191,11 +195,12 @@ export function ModelSelector({ onSelectionChange, estimatedTokens = 1000 }: Mod
       {selectedIds.size > 0 && (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-2">
               <h4 className="text-sm font-medium text-yellow-900">Estimated Cost Per Run</h4>
-              <p className="text-xs text-yellow-700 mt-1">
-                Based on ~{estimatedTokens.toLocaleString()} input tokens + ~{Math.round(estimatedTokens * 0.5).toLocaleString()} output tokens
-              </p>
+              <InfoIcon
+                tooltip={`Calculation based on ~${estimatedTokens.toLocaleString()} input tokens and ~${Math.round(estimatedTokens * 0.5).toLocaleString()} estimated output tokens (50% of input). Actual costs depend on model response length.`}
+                className="text-yellow-700"
+              />
             </div>
             <div className="text-2xl font-bold text-yellow-900">
               ${totalEstimatedCost.toFixed(4)}

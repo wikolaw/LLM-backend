@@ -251,7 +251,7 @@ export default function DashboardPage() {
                       w-10 h-10 rounded-full flex items-center justify-center font-semibold
                       ${currentStep >= step.num
                         ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-gray-200 text-gray-700'
                       }
                     `}
                   >
@@ -259,7 +259,7 @@ export default function DashboardPage() {
                   </div>
                   <span
                     className={`ml-2 text-sm font-medium ${
-                      currentStep >= step.num ? 'text-gray-900' : 'text-gray-500'
+                      currentStep >= step.num ? 'text-gray-900' : 'text-gray-700'
                     }`}
                   >
                     {step.label}

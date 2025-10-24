@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Database } from '@/lib/supabase/types'
 import { formatValidationErrors } from '@/lib/validation/schema-validator'
+import { InfoIcon } from '@/components/ui/InfoIcon'
 
 type Output = Database['public']['Tables']['outputs']['Row']
 
@@ -101,7 +102,7 @@ export function ResultsComparison({ outputs, onExport }: ResultsComparisonProps)
                     ❌ Error
                   </span>
                 ) : output.json_valid ? (
-                  <span className="px-2 py-0.5 text-xs font-semibold bg-yellow-600 text-white rounded">
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-yellow-700 text-white rounded">
                     ⚠️ Validation Failed
                   </span>
                 ) : (
@@ -112,7 +113,7 @@ export function ResultsComparison({ outputs, onExport }: ResultsComparisonProps)
 
                 {/* Output Format Badge */}
                 {output.output_format && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-700 rounded">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-900 rounded">
                     {output.output_format.toUpperCase()}
                   </span>
                 )}
@@ -245,7 +246,7 @@ export function ResultsComparison({ outputs, onExport }: ResultsComparisonProps)
           <p className="text-2xl font-bold text-gray-900">{outputs.length}</p>
         </div>
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-sm text-green-700">Validated</p>
+          <p className="text-sm text-green-800">Validated</p>
           <p className="text-2xl font-bold text-green-900">
             {validatedOutputs.length}/{outputs.length}
           </p>
@@ -254,11 +255,11 @@ export function ResultsComparison({ outputs, onExport }: ResultsComparisonProps)
           </p>
         </div>
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">Avg Time</p>
+          <p className="text-sm text-blue-800">Avg Time</p>
           <p className="text-2xl font-bold text-blue-900">{Math.round(avgExecutionTime)}ms</p>
         </div>
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-700">Total Cost</p>
+          <p className="text-sm text-yellow-800">Total Cost</p>
           <p className="text-2xl font-bold text-yellow-900">${totalCost.toFixed(4)}</p>
         </div>
       </div>
@@ -269,12 +270,13 @@ export function ResultsComparison({ outputs, onExport }: ResultsComparisonProps)
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">🏆</span>
             <h3 className="font-semibold text-green-900">Best Result</h3>
+            <InfoIcon
+              tooltip="This model produced schema-valid output in the shortest time. All validated results meet your extraction requirements and passed JSON Schema validation."
+              className="text-green-700"
+            />
           </div>
           <p className="text-sm text-green-800">
             <strong>{sortedOutputs[0].model}</strong> - Validated in {sortedOutputs[0].execution_time_ms}ms
-          </p>
-          <p className="text-xs text-green-700 mt-1">
-            All validated results passed JSON Schema validation successfully
           </p>
         </div>
       )}
