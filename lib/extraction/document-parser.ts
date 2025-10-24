@@ -1,4 +1,3 @@
-import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
 
 export interface ExtractionResult {
@@ -25,27 +24,15 @@ export async function extractText(buffer: Buffer): Promise<ExtractionResult> {
 }
 
 /**
- * Extract text from a PDF file using pdf-parse
+ * Extract text from a PDF file
+ * NOTE: PDF extraction is currently not implemented due to library compatibility issues.
+ * Please convert PDF files to TXT or DOCX format.
  */
 export async function extractPDF(buffer: Buffer): Promise<ExtractionResult> {
-  try {
-    const data = await pdf(buffer)
-    const text = data.text.trim()
-
-    if (text.length < 10) {
-      throw new Error('PDF appears to be empty or contains only images')
-    }
-
-    return {
-      text,
-      charCount: text.length,
-      excerpt: text.substring(0, 200)
-    }
-  } catch (error) {
-    throw new Error(
-      `PDF extraction failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
+  throw new Error(
+    'PDF extraction is not yet implemented. Please convert your PDF to TXT or DOCX format first. ' +
+    'You can use online converters like: https://www.ilovepdf.com/pdf_to_word or https://convertio.co/pdf-txt/'
+  )
 }
 
 /**
