@@ -110,6 +110,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
     onDrop,
     accept: {
       'text/plain': ['.txt'],
+      'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/msword': ['.doc'],
     },
@@ -155,7 +156,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
                 Drag and drop a document here, or click to select
               </p>
               <p className="text-sm text-gray-500">
-                Supported formats: DOCX, DOC, TXT (max 50MB)
+                Supported formats: PDF, DOCX, DOC, TXT (max 50MB)
               </p>
             </>
           )}

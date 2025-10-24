@@ -24,15 +24,51 @@ export async function extractText(buffer: Buffer): Promise<ExtractionResult> {
 }
 
 /**
- * Extract text from a PDF file
- * NOTE: PDF extraction is currently not implemented due to library compatibility issues.
- * Please convert PDF files to TXT or DOCX format.
+ * Extract text from a PDF file using pdfjs-dist (Mozilla's PDF.js)
  */
 export async function extractPDF(buffer: Buffer): Promise<ExtractionResult> {
-  throw new Error(
-    'PDF extraction is not yet implemented. Please convert your PDF to TXT or DOCX format first. ' +
-    'You can use online converters like: https://www.ilovepdf.com/pdf_to_word or https://convertio.co/pdf-txt/'
-  )
+  try {
+    // Import pdfjs-dist dynamically to avoid webpack issues
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      useSystemFonts: true,
+    })
+
+    const pdf = await loadingTask.promise
+    let fullText = ''
+
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum)
+      const textContent = await page.getTextContent()
+
+      // Combine text items with spaces
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ')
+
+      fullText += pageText + '\n\n'
+    }
+
+    const text = fullText.trim()
+
+    if (text.length < 10) {
+      throw new Error('PDF appears to be empty or contains only images')
+    }
+
+    return {
+      text,
+      charCount: text.length,
+      excerpt: text.substring(0, 200)
+    }
+  } catch (error) {
+    throw new Error(
+      `PDF extraction failed: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
 }
 
 /**
