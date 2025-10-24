@@ -8,7 +8,6 @@ import { ModelSelector } from '@/components/results/ModelSelector'
 import { ResultsComparison } from '@/components/results/ResultsComparison'
 import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/types'
-import { extractionJsonSchema, contractJsonSchema } from '@/lib/schemas/extraction'
 
 type Model = Database['public']['Tables']['models']['Row']
 type Output = Database['public']['Tables']['outputs']['Row']
@@ -33,7 +32,8 @@ export default function DashboardPage() {
   // Prompt state
   const [systemPrompt, setSystemPrompt] = useState('')
   const [userPrompt, setUserPrompt] = useState('')
-  const [schemaType, setSchemaType] = useState<'generic' | 'contract'>('contract')
+  const [outputFormat, setOutputFormat] = useState<'json' | 'jsonl'>('json')
+  const [validationSchema, setValidationSchema] = useState<object | null>(null)
 
   // Model state
   const [selectedModels, setSelectedModels] = useState<Model[]>([])
@@ -89,10 +89,16 @@ export default function DashboardPage() {
     }
   }
 
-  const handlePromptsChange = (sys: string, user: string, schema: 'generic' | 'contract') => {
-    setSystemPrompt(sys)
-    setUserPrompt(user)
-    setSchemaType(schema)
+  const handleConfigChange = (config: {
+    outputFormat: 'json' | 'jsonl'
+    systemPrompt: string
+    userPrompt: string
+    validationSchema: object
+  }) => {
+    setOutputFormat(config.outputFormat)
+    setSystemPrompt(config.systemPrompt)
+    setUserPrompt(config.userPrompt)
+    setValidationSchema(config.validationSchema)
   }
 
   const handleModelsChange = (models: Model[]) => {
@@ -145,8 +151,9 @@ export default function DashboardPage() {
             documentText: documentText.substring(0, 20000), // Limit to 20K chars for now
             systemPrompt,
             userPrompt,
+            outputFormat,
+            validationSchema,
             models: modelsData,
-            jsonSchema: schemaType === 'contract' ? contractJsonSchema : extractionJsonSchema,
           }
         })
 
@@ -299,14 +306,13 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-500 mt-1">Customize the extraction instructions</p>
               </div>
               <PromptEditor
-                onPromptsChange={handlePromptsChange}
-                initialSchemaType="contract"
+                onConfigChange={handleConfigChange}
               />
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setCurrentStep(3)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  disabled={!systemPrompt || !userPrompt}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  disabled={!systemPrompt || !userPrompt || !validationSchema}
                 >
                   Next: Select Models →
                 </button>

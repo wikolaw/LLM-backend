@@ -90,6 +90,10 @@ export interface Database {
           tokens_out: number | null
           execution_time_ms: number | null
           error_message: string | null
+          output_format: string | null
+          validation_schema: Json | null
+          validation_passed: boolean | null
+          validation_errors: Json | null
           created_at: string
         }
         Insert: {
@@ -105,6 +109,10 @@ export interface Database {
           tokens_out?: number | null
           execution_time_ms?: number | null
           error_message?: string | null
+          output_format?: string | null
+          validation_schema?: Json | null
+          validation_passed?: boolean | null
+          validation_errors?: Json | null
           created_at?: string
         }
         Update: {
@@ -120,6 +128,10 @@ export interface Database {
           tokens_out?: number | null
           execution_time_ms?: number | null
           error_message?: string | null
+          output_format?: string | null
+          validation_schema?: Json | null
+          validation_passed?: boolean | null
+          validation_errors?: Json | null
           created_at?: string
         }
       }

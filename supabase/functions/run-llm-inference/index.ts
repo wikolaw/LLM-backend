@@ -1,13 +1,15 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { calculateQualityScores } from '../_shared/quality-scorer.ts'
+import { validateAgainstSchema, type OutputFormat } from '../_shared/schema-validator.ts'
 
 interface InferenceRequest {
   runId: string
   documentText: string
-  systemPrompt: string
-  userPrompt: string
+  systemPrompt: string // Already format-specific (includes "JSON" or "JSON Lines")
+  userPrompt: string // AI-optimized extraction prompt
+  outputFormat: OutputFormat // 'json' or 'jsonl'
+  validationSchema: object // JSON Schema for validation
   models: Array<{
     name: string
     provider: string
@@ -16,7 +18,6 @@ interface InferenceRequest {
     priceIn: number
     priceOut: number
   }>
-  jsonSchema: any
 }
 
 interface OpenRouterMessage {
@@ -46,12 +47,13 @@ serve(async (req) => {
       documentText,
       systemPrompt,
       userPrompt,
+      outputFormat,
+      validationSchema,
       models,
-      jsonSchema,
     }: InferenceRequest = await req.json()
 
-    // Replace placeholder in user prompt
-    const finalUserPrompt = userPrompt.replace('{DOCUMENT_TEXT}', documentText)
+    // Combine user prompt with document text
+    const finalUserPrompt = `${userPrompt}\n\nDocument text:\n${documentText}`
 
     const messages: OpenRouterMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -71,11 +73,11 @@ serve(async (req) => {
             max_tokens: 4000,
           }
 
-          // Add JSON mode if supported
-          if (model.supportsJsonMode && jsonSchema) {
+          // Add JSON mode if supported (only for 'json' format, not 'jsonl')
+          if (model.supportsJsonMode && outputFormat === 'json' && validationSchema) {
             requestBody.response_format = {
               type: 'json_object',
-              schema: jsonSchema,
+              schema: validationSchema,
             }
           }
 
@@ -98,21 +100,44 @@ serve(async (req) => {
           }
 
           const data = await response.json()
-          const content = data.choices?.[0]?.message?.content || ''
+          const rawContent = data.choices?.[0]?.message?.content || ''
 
-          // Try to parse JSON
+          // Parse JSON based on output format
           let jsonPayload: any = null
           let jsonValid = false
-          let qualityDetails: any = null
+          let validationPassed = false
+          let validationErrors: any = null
 
           try {
-            jsonPayload = JSON.parse(content)
-            jsonValid = true
+            if (outputFormat === 'json') {
+              // Single JSON object
+              jsonPayload = JSON.parse(rawContent)
+              jsonValid = true
+            } else {
+              // JSON Lines - parse each line
+              const lines = rawContent.split('\n').filter(line => line.trim())
+              jsonPayload = lines.map(line => JSON.parse(line))
+              jsonValid = true
+            }
 
-            // Calculate quality scores for valid JSON
-            qualityDetails = calculateQualityScores(content, jsonPayload)
-          } catch (_e) {
+            // Validate against schema
+            if (jsonValid && validationSchema) {
+              const validationResult = validateAgainstSchema(
+                outputFormat === 'json' ? jsonPayload : rawContent,
+                validationSchema,
+                outputFormat
+              )
+              validationPassed = validationResult.valid
+              validationErrors = validationResult.errors.length > 0 ? validationResult.errors : null
+            } else {
+              validationPassed = false
+            }
+          } catch (parseError) {
             jsonValid = false
+            validationPassed = false
+            validationErrors = [{
+              message: `JSON parse error: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+            }]
           }
 
           // Calculate costs
@@ -121,34 +146,31 @@ serve(async (req) => {
           const costIn = tokensIn * model.priceIn
           const costOut = tokensOut * model.priceOut
 
-          // Save output to database with quality scores
+          // Save output to database with validation results
           await supabaseClient.from('outputs').insert({
             run_id: runId,
             model: `${model.provider}/${model.name}`,
             json_valid: jsonValid,
             json_payload: jsonPayload,
-            raw_response: content,
+            raw_response: rawContent,
             cost_in: costIn,
             cost_out: costOut,
             tokens_in: tokensIn,
             tokens_out: tokensOut,
             execution_time_ms: executionTimeMs,
             error_message: null,
-            // Quality scores (will be null if JSON invalid)
-            quality_syntax: qualityDetails?.scores.syntax || null,
-            quality_structural: qualityDetails?.scores.structural || null,
-            quality_completeness: qualityDetails?.scores.completeness || null,
-            quality_content: qualityDetails?.scores.content || null,
-            quality_consensus: 0, // Will be calculated later by consensus function
-            quality_overall: qualityDetails?.scores.overall || 0,
-            quality_flags: qualityDetails?.flags || null,
-            quality_metrics: qualityDetails?.metrics || null,
+            // v2.0: JSON Schema validation
+            output_format: outputFormat,
+            validation_schema: validationSchema,
+            validation_passed: validationPassed,
+            validation_errors: validationErrors,
           })
 
           return {
             model: model.displayName,
             success: true,
             jsonValid,
+            validationPassed,
             executionTimeMs,
             tokensIn,
             tokensOut,
@@ -170,21 +192,18 @@ serve(async (req) => {
             tokens_out: null,
             execution_time_ms: executionTimeMs,
             error_message: error.message,
-            // Null quality scores for errors
-            quality_syntax: null,
-            quality_structural: null,
-            quality_completeness: null,
-            quality_content: null,
-            quality_consensus: null,
-            quality_overall: 0,
-            quality_flags: null,
-            quality_metrics: null,
+            // v2.0: Null validation for errors
+            output_format: outputFormat,
+            validation_schema: validationSchema,
+            validation_passed: false,
+            validation_errors: [{ message: error.message }],
           })
 
           return {
             model: model.displayName,
             success: false,
             jsonValid: false,
+            validationPassed: false,
             executionTimeMs,
             error: error.message,
           }
