@@ -13,11 +13,16 @@ A web-based demo application that extracts structured data from documents (PDF, 
    - Storage bucket for documents created
    - **16 LLM models configured** (including free tier options)
 
-2. **Supabase Edge Functions** (Deployed & Active)
-   - `extract-text`: Extracts text from uploaded documents
-   - `run-llm-inference`: Runs multiple LLM models in parallel via OpenRouter
+2. **Document Extraction** (Production-Ready)
+   - **Vercel API Route** (`/api/extract-text`): Extracts text from TXT, DOCX, PDF
+   - Uses Node.js libraries: `mammoth` (DOCX), `pdfjs-dist` (PDF)
+   - Performance: 576ms (TXT), 11.1s (DOCX)
 
-3. **Next.js Application** (Complete)
+3. **Supabase Edge Functions** (Deployed & Active)
+   - `run-llm-inference`: Runs multiple LLM models in parallel via OpenRouter
+   - `calculate-consensus`: Cross-model validation and quality scoring
+
+4. **Next.js Application** (Complete)
    - ✅ Landing page with features overview
    - ✅ Authentication system (magic link + GitHub OAuth)
    - ✅ Document upload with drag-and-drop
@@ -39,17 +44,21 @@ All components are integrated and ready for testing!
 │   └── globals.css        # Global styles
 ├── components/
 │   ├── upload/            # Document upload components
-│   ├── prompt/            # Prompt editor (to be created)
-│   ├── results/           # Results display (to be created)
+│   ├── prompt/            # Prompt editor
+│   ├── results/           # Results display
 │   └── ui/                # Reusable UI components
 ├── lib/
+│   ├── extraction/        # Document parsing (TXT, DOCX, PDF)
 │   ├── supabase/          # Supabase client utilities
 │   ├── openrouter/        # OpenRouter API client
+│   ├── validation/        # Quality scoring system
 │   └── schemas/           # Zod schemas and JSON schemas
+├── app/api/
+│   └── extract-text/      # Vercel API route for document extraction
 ├── supabase/
 │   └── functions/         # Edge Functions
-│       ├── extract-text/
-│       └── run-llm-inference/
+│       ├── run-llm-inference/
+│       └── calculate-consensus/
 └── middleware.ts          # Supabase auth middleware
 ```
 
@@ -86,6 +95,45 @@ OPENROUTER_API_KEY=<get_from_openrouter.ai>
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+## Document Extraction Architecture
+
+The document extraction system uses **Vercel API Routes with full Node.js runtime** to extract text from uploaded documents.
+
+### Supported Formats
+
+| Format | Library | Status | Performance |
+|--------|---------|--------|-------------|
+| TXT | Native Node.js | ✅ Production | ~500ms |
+| DOCX/DOC | mammoth | ✅ Production | ~11s |
+| PDF | pdfjs-dist | ✅ Production | ~1-5s |
+
+### How It Works
+
+```
+User uploads file → Supabase Storage
+    ↓
+Client calls /api/extract-text → Vercel API Route (Node.js)
+    ↓
+API downloads file → Extracts text → Updates DB
+    ↓
+Returns success with character count and excerpt
+```
+
+### Key Files
+
+- `lib/extraction/document-parser.ts` - Core extraction library
+- `app/api/extract-text/route.ts` - Vercel API endpoint
+- `components/upload/DocumentUpload.tsx` - Frontend upload UI
+
+### Documentation
+
+For detailed implementation details, see:
+- **[Document Extraction Solution](Documentation/DOCUMENT-EXTRACTION-SOLUTION.md)** - Complete architecture and API documentation
+- **[PDF Extraction Investigation](Documentation/PDF-EXTRACTION-INVESTIGATION.md)** - Library comparison and research
+- **[Test Results](Documentation/TEST-RESULTS-DOCUMENT-EXTRACTION.md)** - Validation and performance analysis
+
+---
 
 ## Schema Types
 

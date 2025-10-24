@@ -1,23 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "mcp__supabase__list_organizations",
-      "mcp__supabase__get_cost",
-      "mcp__supabase__confirm_cost",
-      "mcp__supabase__create_project",
-      "mcp__supabase__get_project_url",
-      "mcp__supabase__get_anon_key",
-      "mcp__supabase__apply_migration",
-      "mcp__supabase__execute_sql",
       "mcp__playwright__browser_navigate",
       "mcp__playwright__browser_click",
       "mcp__playwright__browser_fill_form",
       "Bash(npx supabase:*)",
-      "mcp__supabase__list_edge_functions",
-      "mcp__supabase__deploy_edge_function",
       "Bash(export SUPABASE_ACCESS_TOKEN=sbp_8492609bfa82d170d97716348b7719a55a28c62f)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "notes": [
+      "Removed Supabase MCP tools - replaced with Skills in .claude/skills/supabase/",
+      "Kept Playwright MCP tools - actively used for browser automation",
+      "Kept Bash permissions for Supabase CLI - required by Skills",
+      "Token savings: ~17k tokens (8.5% of context)"
+    ]
   }
 }
