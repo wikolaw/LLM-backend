@@ -1,6 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+// @deno-types="npm:@types/mammoth@1.0.5"
+import mammoth from 'npm:mammoth@1.8.0'
+import * as pdfjsLib from 'npm:pdfjs-dist@4.10.38'
 
 interface ExtractRequest {
   documentId: string
@@ -39,34 +42,56 @@ serve(async (req) => {
       // Plain text - simple read
       extractedText = await fileData.text()
     } else if (mimeType === 'application/pdf') {
-      // For PDF, we'll use a simple approach - convert to text
-      // In production, you might want to use an external API like PDF.co or PyPDF2 service
-      const arrayBuffer = await fileData.arrayBuffer()
-      const bytes = new Uint8Array(arrayBuffer)
+      // Extract text from PDF using pdf.js
+      try {
+        const arrayBuffer = await fileData.arrayBuffer()
+        const typedArray = new Uint8Array(arrayBuffer)
 
-      // Very basic text extraction from PDF (this won't work well for all PDFs)
-      // For a production system, consider using an external service
-      const decoder = new TextDecoder('utf-8')
-      const rawText = decoder.decode(bytes)
+        // Load PDF document
+        const loadingTask = pdfjsLib.getDocument({ data: typedArray })
+        const pdfDocument = await loadingTask.promise
 
-      // Extract printable text (this is a very naive approach)
-      extractedText = rawText
-        .replace(/[^\x20-\x7E\n\r\u00C0-\u024F\u1E00-\u1EFF]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .substring(0, 50000) // Limit to 50k chars
+        const textParts: string[] = []
 
-      // Note: For production, implement proper PDF parsing or use external service
-      if (extractedText.length < 100) {
-        throw new Error('PDF text extraction produced minimal output. Consider using an external PDF service.')
+        // Extract text from each page
+        for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+          const page = await pdfDocument.getPage(pageNum)
+          const textContent = await page.getTextContent()
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ')
+          textParts.push(pageText)
+        }
+
+        extractedText = textParts.join('\n').trim()
+
+        if (extractedText.length < 10) {
+          throw new Error('PDF appears to be empty or contains only images')
+        }
+      } catch (pdfError) {
+        throw new Error(`PDF extraction failed: ${pdfError.message}`)
       }
     } else if (
       mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       mimeType === 'application/msword'
     ) {
-      // For DOCX/DOC, we need external library or service
-      // For now, return error suggesting to use TXT or implement external service
-      throw new Error('DOCX/DOC extraction requires external service. Please convert to PDF or TXT first.')
+      // Extract text from DOCX using mammoth
+      try {
+        const arrayBuffer = await fileData.arrayBuffer()
+        const result = await mammoth.extractRawText({ arrayBuffer })
+        extractedText = result.value.trim()
+
+        if (extractedText.length < 10) {
+          throw new Error('DOCX appears to be empty')
+        }
+
+        // Log any warnings from mammoth
+        if (result.messages.length > 0) {
+          console.log('Mammoth warnings:', result.messages)
+        }
+      } catch (docxError) {
+        throw new Error(`DOCX extraction failed: ${docxError.message}`)
+      }
     } else {
       throw new Error(`Unsupported file type: ${mimeType}`)
     }
