@@ -5,7 +5,8 @@
       "mcp__playwright__browser_click",
       "mcp__playwright__browser_fill_form",
       "Bash(npx supabase:*)",
-      "Bash(export SUPABASE_ACCESS_TOKEN=sbp_8492609bfa82d170d97716348b7719a55a28c62f)"
+      "Bash(export SUPABASE_ACCESS_TOKEN=sbp_8492609bfa82d170d97716348b7719a55a28c62f)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": [],
