@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
+import { config } from 'dotenv'
+
+// Load environment variables from .env.local
+config({ path: '.env.local' })
 
 /**
  * Playwright configuration for LLM Document Analysis tests
@@ -44,19 +48,35 @@ export default defineConfig({
 
   // Configure projects for different browsers
   projects: [
+    // UI tests (browser-based)
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testMatch: /.*\.spec\.ts/, // Matches all spec files
+      testIgnore: /tests\/(unit|api|edge-functions|e2e)\/.*\.spec\.ts/, // Ignore non-UI tests
     },
 
-    // Uncomment to test on other browsers
+    // API tests (no browser, uses request context)
+    {
+      name: 'api-tests',
+      use: {
+        baseURL: 'http://localhost:3000',
+        // Increase timeout for LLM API calls (prompt optimization, schema generation)
+        actionTimeout: 120000, // 2 minutes for API calls
+      },
+      testMatch: /tests\/(unit|api|edge-functions|e2e)\/.*\.spec\.ts/,
+    },
+
+    // Uncomment to test UI on other browsers
     // {
     //   name: 'firefox',
     //   use: { ...devices['Desktop Firefox'] },
+    //   testIgnore: /tests\/(unit|api|edge-functions|e2e)\/.*\.spec\.ts/,
     // },
     // {
     //   name: 'webkit',
     //   use: { ...devices['Desktop Safari'] },
+    //   testIgnore: /tests\/(unit|api|edge-functions|e2e)\/.*\.spec\.ts/,
     // },
   ],
 

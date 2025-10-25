@@ -5,12 +5,61 @@ import { useRouter } from 'next/navigation'
 import { DocumentUpload } from '@/components/upload/DocumentUpload'
 import { PromptEditor } from '@/components/prompt/PromptEditor'
 import { ModelSelector } from '@/components/results/ModelSelector'
-import { ResultsComparison } from '@/components/results/ResultsComparison'
+import { BatchResults } from '@/components/results/BatchResults'
 import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/supabase/types'
 
 type Model = Database['public']['Tables']['models']['Row']
-type Output = Database['public']['Tables']['outputs']['Row']
+
+interface BatchStatus {
+  batchJobId: string
+  name: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  totalDocuments: number
+  completedDocuments: number
+  successfulRuns: number
+  failedRuns: number
+  currentDocument?: string
+  errorMessage?: string
+}
+
+interface BatchAnalytics {
+  globalSummary: {
+    totalDocuments: number
+    totalRuns: number
+    successRate: number
+    totalCost: number
+    avgExecutionTime: number
+  }
+  modelAnalytics: Array<{
+    model: string
+    successCount: number
+    failureCount: number
+    successRate: number
+    avgExecutionTime: number
+    totalCost: number
+    commonErrors: Array<{
+      error: string
+      count: number
+      documents?: string[]
+    }>
+  }>
+  documentResults: Array<{
+    documentId: string
+    filename: string
+    modelsPassedCount: number
+    modelsTotalCount: number
+    status: 'all_passed' | 'partial' | 'all_failed'
+  }>
+  attributeFailures: Array<{
+    attributePath: string
+    missingCount: number
+    typeMismatchCount: number
+    formatViolationCount: number
+    affectedModels: string[]
+    pattern?: string
+  }>
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -24,12 +73,13 @@ export default function DashboardPage() {
   // Step tracking
   const [currentStep, setCurrentStep] = useState(1)
 
-  // Document state
-  const [documentId, setDocumentId] = useState<string | null>(null)
-  const [documentText, setDocumentText] = useState<string>('')
-  const [documentInfo, setDocumentInfo] = useState<any>(null)
+  // Batch document state (v3.0: multiple documents)
+  const [documentIds, setDocumentIds] = useState<string[]>([])
+  const [documentCount, setDocumentCount] = useState(0)
+  const [totalCharCount, setTotalCharCount] = useState(0)
 
   // Prompt state
+  const [batchName, setBatchName] = useState('')
   const [systemPrompt, setSystemPrompt] = useState('')
   const [userPrompt, setUserPrompt] = useState('')
   const [outputFormat, setOutputFormat] = useState<'json' | 'jsonl'>('json')
@@ -38,14 +88,15 @@ export default function DashboardPage() {
   // Model state
   const [selectedModels, setSelectedModels] = useState<Model[]>([])
 
-  // Execution state
-  const [isRunning, setIsRunning] = useState(false)
-  const [runProgress, setRunProgress] = useState('')
-  const [runError, setRunError] = useState<string | null>(null)
+  // Batch execution state
+  const [batchJobId, setBatchJobId] = useState<string | null>(null)
+  const [batchStatus, setBatchStatus] = useState<BatchStatus | null>(null)
+  const [isCreatingBatch, setIsCreatingBatch] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [batchError, setBatchError] = useState<string | null>(null)
 
   // Results state
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null)
-  const [outputs, setOutputs] = useState<Output[]>([])
+  const [batchAnalytics, setBatchAnalytics] = useState<BatchAnalytics | null>(null)
 
   // Check authentication on mount
   useEffect(() => {
@@ -71,22 +122,61 @@ export default function DashboardPage() {
     checkAuth()
   }, [router, supabase.auth])
 
-  const handleDocumentUpload = async (docId: string) => {
-    setDocumentId(docId)
-    setRunError(null)
+  // Poll for batch status while processing
+  useEffect(() => {
+    if (!batchJobId || !isProcessing) return
 
-    // Fetch document details
-    const { data: doc, error } = await supabase
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/batch/${batchJobId}/status`)
+        const data: BatchStatus = await response.json()
+
+        setBatchStatus(data)
+
+        if (data.status === 'completed') {
+          setIsProcessing(false)
+          setCurrentStep(4)
+
+          // Fetch analytics
+          const analyticsResponse = await fetch(`/api/batch/${batchJobId}/analytics`)
+          const analyticsData: BatchAnalytics = await analyticsResponse.json()
+          setBatchAnalytics(analyticsData)
+
+          clearInterval(pollInterval)
+        } else if (data.status === 'failed') {
+          setIsProcessing(false)
+          setBatchError(data.errorMessage || 'Batch processing failed')
+          clearInterval(pollInterval)
+        }
+      } catch (error) {
+        console.error('Error polling batch status:', error)
+      }
+    }, 2000) // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [batchJobId, isProcessing])
+
+  const handleDocumentUpload = async (docIds: string[]) => {
+    setDocumentIds(docIds)
+    setDocumentCount(docIds.length)
+    setBatchError(null)
+
+    // Fetch document details to show summary
+    const { data: docs } = await supabase
       .from('documents')
-      .select('*')
-      .eq('id', docId)
-      .single()
+      .select('char_count')
+      .in('id', docIds)
 
-    if (!error && doc) {
-      setDocumentInfo(doc)
-      setDocumentText(doc.full_text || '')
-      setCurrentStep(2)
+    if (docs) {
+      const totalChars = docs.reduce((sum, doc) => sum + (doc.char_count || 0), 0)
+      setTotalCharCount(totalChars)
     }
+
+    // Auto-generate batch name
+    const timestamp = new Date().toLocaleString()
+    setBatchName(`Batch (${docIds.length} docs) - ${timestamp}`)
+
+    setCurrentStep(2)
   }
 
   const handleConfigChange = (config: {
@@ -105,100 +195,67 @@ export default function DashboardPage() {
     setSelectedModels(models)
   }
 
-  const canRunInference = documentId && documentText && systemPrompt && userPrompt && selectedModels.length > 0
+  const canRunBatch = documentIds.length > 0 && systemPrompt && userPrompt && validationSchema && selectedModels.length > 0
 
-  const runInference = async () => {
-    if (!canRunInference) return
+  const createAndStartBatch = async () => {
+    if (!canRunBatch) return
 
-    setIsRunning(true)
-    setRunError(null)
-    setRunProgress('Creating run record...')
+    setIsCreatingBatch(true)
+    setBatchError(null)
 
     try {
-      // Create run record
-      const { data: run, error: runError } = await supabase
-        .from('runs')
-        .insert({
-          document_id: documentId!,
-          system_prompt: systemPrompt,
-          user_prompt: userPrompt,
-          prompt_hash: `${Date.now()}`,
-          models_used: selectedModels.map(m => `${m.provider}/${m.name}`),
+      // Step 1: Create batch job
+      const createResponse = await fetch('/api/batch/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentIds,
+          name: batchName,
+          systemPrompt,
+          userPrompt,
+          outputFormat,
+          validationSchema,
+          models: selectedModels.map(m => `${m.provider}/${m.name}`)
         })
-        .select()
-        .single()
+      })
 
-      if (runError) throw runError
-
-      setCurrentRunId(run.id)
-      setRunProgress(`Running ${selectedModels.length} models in parallel...`)
-
-      // Prepare models data for Edge Function
-      const modelsData = selectedModels.map(m => ({
-        name: m.name,
-        provider: m.provider,
-        displayName: m.display_name,
-        supportsJsonMode: m.supports_json_mode,
-        priceIn: parseFloat(m.price_in.toString()),
-        priceOut: parseFloat(m.price_out.toString()),
-      }))
-
-      // Call Edge Function
-      const { data: result, error: inferenceError } = await supabase.functions
-        .invoke('run-llm-inference', {
-          body: {
-            runId: run.id,
-            documentText: documentText.substring(0, 20000), // Limit to 20K chars for now
-            systemPrompt,
-            userPrompt,
-            outputFormat,
-            validationSchema,
-            models: modelsData,
-          }
-        })
-
-      if (inferenceError) throw inferenceError
-
-      if (!result.success) {
-        throw new Error(result.error || 'Inference failed')
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json()
+        throw new Error(errorData.error || 'Failed to create batch job')
       }
 
-      setRunProgress('Fetching results...')
+      const createData = await createResponse.json()
+      setBatchJobId(createData.batchJobId)
 
-      // Fetch outputs
-      const { data: outputs, error: outputsError } = await supabase
-        .from('outputs')
-        .select('*')
-        .eq('run_id', run.id)
-        .order('created_at', { ascending: false })
+      // Step 2: Start processing
+      const startResponse = await fetch('/api/batch/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchJobId: createData.batchJobId })
+      })
 
-      if (outputsError) throw outputsError
+      if (!startResponse.ok) {
+        const errorData = await startResponse.json()
+        throw new Error(errorData.error || 'Failed to start batch processing')
+      }
 
-      setOutputs(outputs || [])
-      setCurrentStep(4)
-      setRunProgress(`Completed! ${result.results.length} models executed.`)
+      setIsProcessing(true)
+      setBatchStatus({
+        batchJobId: createData.batchJobId,
+        name: batchName,
+        status: 'processing',
+        totalDocuments: documentIds.length,
+        completedDocuments: 0,
+        successfulRuns: 0,
+        failedRuns: 0
+      })
 
-      // Clear progress after 3 seconds
-      setTimeout(() => setRunProgress(''), 3000)
-
-    } catch (error: any) {
-      setRunError(error.message || 'An error occurred during inference')
-      console.error('Inference error:', error)
+    } catch (error) {
+      setBatchError(error instanceof Error ? error.message : 'An error occurred')
+      console.error('Batch creation error:', error)
     } finally {
-      setIsRunning(false)
+      setIsCreatingBatch(false)
     }
-  }
-
-  const exportOutput = (output: Output) => {
-    // Export as JSON file
-    const dataStr = JSON.stringify(output.json_payload, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${output.model.replace(/\//g, '-')}-${Date.now()}.json`
-    link.click()
-    URL.revokeObjectURL(url)
   }
 
   // Show loading while checking auth
@@ -225,8 +282,8 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">LLM Document Analysis</h1>
-              <p className="text-sm text-gray-500">Swedish Text Extraction PoC{userEmail && ` • ${userEmail}`}</p>
+              <h1 className="text-2xl font-bold text-gray-900">LLM Document Analysis v3.0</h1>
+              <p className="text-sm text-gray-500">Batch Processing with Comprehensive Analytics{userEmail && ` • ${userEmail}`}</p>
             </div>
             <a
               href="/"
@@ -239,10 +296,10 @@ export default function DashboardPage() {
           {/* Progress Steps */}
           <div className="mt-6 flex items-center justify-between">
             {[
-              { num: 1, label: 'Upload Document' },
-              { num: 2, label: 'Configure Prompts' },
-              { num: 3, label: 'Select Models' },
-              { num: 4, label: 'View Results' },
+              { num: 1, label: 'Upload Documents' },
+              { num: 2, label: 'Configure Extraction' },
+              { num: 3, label: 'Run Batch Processing' },
+              { num: 4, label: 'View Analytics' },
             ].map((step, idx) => (
               <div key={step.num} className="flex items-center flex-1">
                 <div className="flex items-center">
@@ -281,17 +338,17 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="space-y-8">
-          {/* Step 1: Upload Document */}
+          {/* Step 1: Upload Documents */}
           <section className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">1. Upload Document</h2>
-                <p className="text-sm text-gray-500 mt-1">Upload a PDF, DOCX, or TXT file to analyze</p>
+                <h2 className="text-xl font-semibold text-gray-900">1. Upload Documents</h2>
+                <p className="text-sm text-gray-500 mt-1">Upload one or more PDF, DOCX, or TXT files for batch processing</p>
               </div>
-              {documentInfo && (
+              {documentCount > 0 && (
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{documentInfo.filename}</p>
-                  <p className="text-xs text-gray-500">{documentInfo.char_count?.toLocaleString()} characters</p>
+                  <p className="text-sm font-medium text-gray-900">{documentCount} document{documentCount !== 1 ? 's' : ''} uploaded</p>
+                  <p className="text-xs text-gray-500">{totalCharCount.toLocaleString()} total characters</p>
                 </div>
               )}
             </div>
@@ -302,12 +359,24 @@ export default function DashboardPage() {
           {currentStep >= 2 && (
             <section className="bg-white rounded-lg shadow-sm p-6">
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">2. Configure Prompts</h2>
-                <p className="text-sm text-gray-500 mt-1">Customize the extraction instructions</p>
+                <h2 className="text-xl font-semibold text-gray-900">2. Configure Extraction</h2>
+                <p className="text-sm text-gray-500 mt-1">Set up prompts and schema (applies to all {documentCount} documents)</p>
               </div>
-              <PromptEditor
-                onConfigChange={handleConfigChange}
-              />
+
+              {/* Batch Name Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Batch Job Name</label>
+                <input
+                  type="text"
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  placeholder="E.g., Contract Extraction Batch 1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <PromptEditor onConfigChange={handleConfigChange} />
+
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setCurrentStep(3)}
@@ -320,73 +389,139 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {/* Step 3: Select Models */}
+          {/* Step 3: Select Models & Run */}
           {currentStep >= 3 && (
             <section className="bg-white rounded-lg shadow-sm p-6">
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">3. Select Models</h2>
-                <p className="text-sm text-gray-500 mt-1">Choose which models to run for comparison</p>
+                <h2 className="text-xl font-semibold text-gray-900">3. Run Batch Processing</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Select models to run on all {documentCount} documents
+                </p>
               </div>
+
               <ModelSelector
                 onSelectionChange={handleModelsChange}
-                estimatedTokens={Math.ceil((systemPrompt.length + userPrompt.length + documentText.length) / 3.5)}
+                estimatedTokens={Math.ceil((systemPrompt.length + userPrompt.length) / 3.5) * documentCount}
               />
+
+              {/* Batch Summary */}
+              {selectedModels.length > 0 && (
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Batch Summary</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-blue-700">Documents:</p>
+                      <p className="font-semibold text-blue-900">{documentCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-700">Models:</p>
+                      <p className="font-semibold text-blue-900">{selectedModels.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-700">Total Runs:</p>
+                      <p className="font-semibold text-blue-900">{documentCount * selectedModels.length}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Run Button */}
               <div className="mt-6 flex items-center justify-between">
                 <button
                   onClick={() => setCurrentStep(2)}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={isProcessing}
                 >
-                  ← Back to Prompts
+                  ← Back to Configuration
                 </button>
                 <button
-                  onClick={runInference}
-                  disabled={!canRunInference || isRunning}
+                  onClick={createAndStartBatch}
+                  disabled={!canRunBatch || isCreatingBatch || isProcessing}
                   className={`
                     px-8 py-3 rounded-lg font-semibold text-white transition-colors
-                    ${canRunInference && !isRunning
+                    ${canRunBatch && !isCreatingBatch && !isProcessing
                       ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-gray-400 cursor-not-allowed'
                     }
                   `}
                 >
-                  {isRunning ? (
+                  {isCreatingBatch ? (
                     <span className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Running...
+                      Creating Batch...
+                    </span>
+                  ) : isProcessing ? (
+                    <span className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Processing...
                     </span>
                   ) : (
-                    `Run ${selectedModels.length} Model${selectedModels.length !== 1 ? 's' : ''}`
+                    `Start Batch Processing (${documentCount * selectedModels.length} runs)`
                   )}
                 </button>
               </div>
 
-              {/* Progress/Error Messages */}
-              {runProgress && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-900">{runProgress}</p>
+              {/* Progress Display */}
+              {isProcessing && batchStatus && (
+                <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-lg font-semibold text-blue-900">Processing Batch...</h4>
+                      {batchStatus.currentDocument && (
+                        <p className="text-sm text-blue-700 mt-1">
+                          Currently processing: <span className="font-medium">{batchStatus.currentDocument}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-900">
+                        {batchStatus.completedDocuments}/{batchStatus.totalDocuments}
+                      </p>
+                      <p className="text-xs text-blue-600">documents processed</p>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-blue-200 rounded-full h-4 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 h-4 transition-all duration-500 flex items-center justify-center"
+                      style={{
+                        width: `${(batchStatus.completedDocuments / batchStatus.totalDocuments) * 100}%`
+                      }}
+                    >
+                      <span className="text-xs font-semibold text-white">
+                        {Math.round((batchStatus.completedDocuments / batchStatus.totalDocuments) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-white rounded-lg">
+                      <p className="text-sm text-gray-600">Successful</p>
+                      <p className="text-xl font-bold text-green-600">{batchStatus.successfulRuns}</p>
+                    </div>
+                    <div className="text-center p-3 bg-white rounded-lg">
+                      <p className="text-sm text-gray-600">Failed</p>
+                      <p className="text-xl font-bold text-red-600">{batchStatus.failedRuns}</p>
+                    </div>
+                  </div>
                 </div>
               )}
-              {runError && (
+
+              {/* Error Display */}
+              {batchError && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-900">{runError}</p>
+                  <p className="text-sm text-red-900">{batchError}</p>
                 </div>
               )}
             </section>
           )}
 
-          {/* Step 4: View Results */}
-          {currentStep >= 4 && outputs.length > 0 && (
+          {/* Step 4: View Analytics */}
+          {currentStep >= 4 && batchAnalytics && (
             <section className="bg-white rounded-lg shadow-sm p-6">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">4. View Results</h2>
-                <p className="text-sm text-gray-500 mt-1">Compare model outputs and export data</p>
-              </div>
-              <ResultsComparison
-                outputs={outputs}
-                onExport={exportOutput}
-              />
+              <BatchResults analytics={batchAnalytics} batchJobName={batchName} />
             </section>
           )}
         </div>
