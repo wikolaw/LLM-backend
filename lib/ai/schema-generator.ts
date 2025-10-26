@@ -39,24 +39,30 @@ export async function generateJSONSchema(
       "description": "The name or title of the contract"
     },
     "start_date": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "date",
       "description": "Contract start date in ISO 8601 format (YYYY-MM-DD)"
     },
+    "end_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Contract end date (optional)"
+    },
     "total_amount": {
-      "type": "number",
-      "description": "Total contract value as a number"
+      "type": ["number", "null"],
+      "description": "Total contract value as a number (use null if not found)"
     },
     "parties": {
       "type": "object",
       "properties": {
         "customer_name": { "type": "string" },
-        "supplier_name": { "type": "string" }
+        "supplier_name": { "type": "string" },
+        "customer_org_id": { "type": ["string", "null"] }
       },
       "required": ["customer_name", "supplier_name"]
     }
   },
-  "required": ["contract_name", "start_date"]
+  "required": ["contract_name"]
 }`
     : `{
   "type": "object",
@@ -66,11 +72,13 @@ export async function generateJSONSchema(
       "description": "Person or entity name"
     },
     "date": {
-      "type": "string",
-      "format": "date"
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Date in ISO 8601 format (optional)"
     },
     "amount": {
-      "type": "number"
+      "type": ["number", "null"],
+      "description": "Numeric amount (use null if not found)"
     }
   },
   "required": ["name"]
@@ -86,10 +94,16 @@ REQUIREMENTS:
 3. Define all fields mentioned in the prompt under "properties"
 4. Specify correct types: string, number, boolean, array, object, null
 5. Add "description" for each field
-6. Use "required" array for mandatory fields
+6. Use "required" array for mandatory fields ONLY
 7. For dates, use: "type": "string", "format": "date"
 8. For nested objects, define nested "properties"
 9. For arrays, use "type": "array" with "items" schema
+10. **IMPORTANT - Nullable Fields:** For fields NOT in the "required" array, allow null values using type array syntax:
+    - Optional string: "type": ["string", "null"]
+    - Optional number: "type": ["number", "null"]
+    - Optional boolean: "type": ["boolean", "null"]
+    - This matches the extraction prompt's instruction to return null for missing data
+11. Required fields should NOT be nullable (use single type: "type": "string")
 
 ${formatNote}
 

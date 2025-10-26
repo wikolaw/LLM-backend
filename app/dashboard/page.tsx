@@ -94,6 +94,7 @@ export default function DashboardPage() {
   const [isCreatingBatch, setIsCreatingBatch] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [batchError, setBatchError] = useState<string | null>(null)
+  const [timeoutWarning, setTimeoutWarning] = useState(false)
 
   // Results state
   const [batchAnalytics, setBatchAnalytics] = useState<BatchAnalytics | null>(null)
@@ -135,6 +136,7 @@ export default function DashboardPage() {
 
         if (data.status === 'completed') {
           setIsProcessing(false)
+          setTimeoutWarning(false) // Clear timeout warning
           setCurrentStep(4)
 
           // Fetch analytics
@@ -145,6 +147,7 @@ export default function DashboardPage() {
           clearInterval(pollInterval)
         } else if (data.status === 'failed') {
           setIsProcessing(false)
+          setTimeoutWarning(false) // Clear timeout warning
           setBatchError(data.errorMessage || 'Batch processing failed')
           clearInterval(pollInterval)
         }
@@ -234,12 +237,32 @@ export default function DashboardPage() {
         body: JSON.stringify({ batchJobId: createData.batchJobId })
       })
 
+      const startData = await startResponse.json()
+
+      // Check if this is a timeout (202 Accepted)
+      if (startResponse.status === 202 || startData.isTimeout) {
+        console.warn('Batch processing timeout - continuing to poll status')
+        setTimeoutWarning(true)
+        setIsProcessing(true)
+        setBatchStatus({
+          batchJobId: createData.batchJobId,
+          name: batchName,
+          status: 'processing',
+          totalDocuments: documentIds.length,
+          completedDocuments: 0,
+          successfulRuns: 0,
+          failedRuns: 0
+        })
+        // Continue - polling will pick up status updates
+        return
+      }
+
       if (!startResponse.ok) {
-        const errorData = await startResponse.json()
-        throw new Error(errorData.error || 'Failed to start batch processing')
+        throw new Error(startData.error || 'Failed to start batch processing')
       }
 
       setIsProcessing(true)
+      setTimeoutWarning(false)
       setBatchStatus({
         batchJobId: createData.batchJobId,
         name: batchName,
@@ -509,6 +532,21 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {/* Timeout Warning */}
+              {isProcessing && timeoutWarning && (
+                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Processing Taking Longer Than Expected
+                    </p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Your batch is still being processed in the background. Status will update automatically when complete.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Error Display */}
               {batchError && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -519,9 +557,9 @@ export default function DashboardPage() {
           )}
 
           {/* Step 4: View Analytics */}
-          {currentStep >= 4 && batchAnalytics && (
+          {currentStep >= 4 && batchAnalytics && batchJobId && (
             <section className="bg-white rounded-lg shadow-sm p-6">
-              <BatchResults analytics={batchAnalytics} batchJobName={batchName} />
+              <BatchResults analytics={batchAnalytics} batchJobName={batchName} batchJobId={batchJobId} />
             </section>
           )}
         </div>

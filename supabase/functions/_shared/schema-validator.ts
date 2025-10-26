@@ -22,6 +22,58 @@ export interface ValidationError {
 }
 
 /**
+ * Transform schema to make all types accept null globally
+ * Recursively adds "null" to all type definitions
+ *
+ * @param schema - Original JSON Schema
+ * @returns Transformed schema where all fields accept null
+ */
+function makeSchemaAcceptNull(schema: any): any {
+  if (!schema || typeof schema !== 'object') {
+    return schema
+  }
+
+  const transformed = { ...schema }
+
+  // If this has a "type" property, make it nullable
+  if (transformed.type) {
+    if (Array.isArray(transformed.type)) {
+      // Already array - add "null" if not present
+      if (!transformed.type.includes('null')) {
+        transformed.type = [...transformed.type, 'null']
+      }
+    } else if (transformed.type !== 'null') {
+      // Single type - convert to array with null
+      transformed.type = [transformed.type, 'null']
+    }
+  }
+
+  // Recursively transform nested properties
+  if (transformed.properties) {
+    transformed.properties = Object.fromEntries(
+      Object.entries(transformed.properties).map(([key, value]) => [
+        key,
+        makeSchemaAcceptNull(value)
+      ])
+    )
+  }
+
+  // Recursively transform array items
+  if (transformed.items) {
+    transformed.items = makeSchemaAcceptNull(transformed.items)
+  }
+
+  // Recursively transform oneOf, anyOf, allOf
+  for (const keyword of ['oneOf', 'anyOf', 'allOf']) {
+    if (transformed[keyword]) {
+      transformed[keyword] = transformed[keyword].map(makeSchemaAcceptNull)
+    }
+  }
+
+  return transformed
+}
+
+/**
  * Validate data against JSON Schema
  *
  * @param data - Parsed JSON data (object for json, string for jsonl)
@@ -34,6 +86,9 @@ export function validateAgainstSchema(
   schema: object,
   format: OutputFormat
 ): ValidationResult {
+  // Transform schema to accept null globally for all fields
+  const nullableSchema = makeSchemaAcceptNull(schema)
+
   const ajv = new Ajv({
     allErrors: true, // Collect all errors, not just first
     verbose: true, // Include more error details
@@ -41,7 +96,7 @@ export function validateAgainstSchema(
   })
   addFormats(ajv) // Add support for format: "date", "email", etc.
 
-  const validate = ajv.compile(schema)
+  const validate = ajv.compile(nullableSchema)
 
   if (format === 'jsonl') {
     return validateJSONLines(data, validate)

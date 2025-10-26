@@ -107,6 +107,31 @@ export async function GET(
       ? outputs?.reduce((sum, o) => sum + (o.execution_time_ms || 0), 0) / totalRuns
       : 0
 
+    // Calculate overall 3-level validation rates
+    const jsonValidOutputs = outputs?.filter(o => o.json_valid === true) || []
+    const attributesValidOutputs = outputs?.filter(o => o.attributes_valid === true) || []
+    const formatsValidOutputs = outputs?.filter(o => o.formats_valid === true) || []
+
+    const overallJsonValidityRate = totalRuns > 0 ? (jsonValidOutputs.length / totalRuns) * 100 : 0
+    const overallAttributeValidityRate = totalRuns > 0 ? (attributesValidOutputs.length / totalRuns) * 100 : 0
+    const overallFormatValidityRate = totalRuns > 0 ? (formatsValidOutputs.length / totalRuns) * 100 : 0
+
+    // Aggregate top guidance suggestions across all models
+    const allGuidance = new Map<string, number>()
+    for (const analytic of analytics || []) {
+      const breakdown = analytic.validation_breakdown as any
+      if (breakdown?.commonGuidance) {
+        for (const guidance of breakdown.commonGuidance) {
+          const count = allGuidance.get(guidance) || 0
+          allGuidance.set(guidance, count + 1)
+        }
+      }
+    }
+    const topGuidanceSuggestions = Array.from(allGuidance.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([guidance]) => guidance)
+
     // Build per-document results
     const documentResults = documentIds.map(docId => {
       const docRuns = runs?.filter(r => r.document_id === docId) || []
@@ -187,7 +212,11 @@ export async function GET(
         totalRuns,
         successRate,
         totalCost,
-        avgExecutionTime: Math.round(avgExecutionTime)
+        avgExecutionTime: Math.round(avgExecutionTime),
+        overallJsonValidityRate: Math.round(overallJsonValidityRate * 100) / 100,
+        overallAttributeValidityRate: Math.round(overallAttributeValidityRate * 100) / 100,
+        overallFormatValidityRate: Math.round(overallFormatValidityRate * 100) / 100,
+        topGuidanceSuggestions
       },
       modelAnalytics: (analytics || []).map(a => ({
         model: a.model,
@@ -198,7 +227,11 @@ export async function GET(
           : 0,
         avgExecutionTime: a.avg_execution_time_ms,
         totalCost: parseFloat(a.total_cost?.toString() || '0'),
-        commonErrors: a.common_errors as any[] || []
+        commonErrors: a.common_errors as any[] || [],
+        jsonValidityRate: a.json_validity_rate ? parseFloat(a.json_validity_rate.toString()) : undefined,
+        attributeValidityRate: a.attribute_validity_rate ? parseFloat(a.attribute_validity_rate.toString()) : undefined,
+        formatValidityRate: a.format_validity_rate ? parseFloat(a.format_validity_rate.toString()) : undefined,
+        validationBreakdown: a.validation_breakdown as any
       })),
       documentResults,
       attributeFailures

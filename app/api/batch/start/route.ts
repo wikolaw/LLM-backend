@@ -48,16 +48,56 @@ export async function POST(request: NextRequest) {
 
     // Call the batch-processor Edge Function asynchronously
     // Note: We don't await this - it runs in the background
-    const { error: functionError } = await supabase.functions.invoke('batch-processor', {
+    const { data, error: functionError } = await supabase.functions.invoke('batch-processor', {
       body: { batchJobId }
     })
 
     if (functionError) {
+      // Check if this is a timeout error
+      const isTimeout =
+        functionError.context?.status === 504 ||
+        functionError.message?.toLowerCase().includes('timeout') ||
+        functionError.message?.toLowerCase().includes('504')
+
+      // Log detailed error information
+      console.error('Edge Function error:', {
+        message: functionError.message,
+        context: functionError.context,
+        isTimeout,
+        details: JSON.stringify(functionError, null, 2)
+      })
+
+      // Special handling for timeout - batch may still be processing
+      if (isTimeout) {
+        console.warn('Edge Function timeout detected - batch processing may continue in background')
+        return NextResponse.json(
+          {
+            error: 'Batch processing started but taking longer than expected',
+            details: 'Your batch is still being processed in the background. Status will update automatically.',
+            isTimeout: true,
+            batchJobId,
+            timestamp: new Date().toISOString()
+          },
+          { status: 202 } // 202 Accepted - processing continues
+        )
+      }
+
+      // Regular error handling
       return NextResponse.json(
-        { error: `Failed to start batch processing: ${functionError.message}` },
+        {
+          error: `Batch processing failed: ${functionError.message}`,
+          details: functionError.context || 'Check Supabase Edge Function logs for detailed error information',
+          timestamp: new Date().toISOString()
+        },
         { status: 500 }
       )
     }
+
+    // Log successful invocation
+    console.log('Edge Function invoked successfully:', {
+      batchJobId,
+      response: data
+    })
 
     return NextResponse.json({
       success: true,

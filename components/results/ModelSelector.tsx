@@ -146,7 +146,7 @@ export function ModelSelector({ onSelectionChange, estimatedTokens = 1000 }: Mod
               )}
             </div>
             <p className="text-xs text-gray-600 mt-1">
-              {model.provider} / {model.name}
+              {model.display_name}
             </p>
             <div className="mt-2 flex gap-4 text-xs text-gray-700">
               <span>Context: {(model.context_window / 1000).toFixed(0)}K</span>

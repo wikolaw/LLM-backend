@@ -124,4 +124,65 @@ test.describe('API: /api/generate-schema', () => {
 
     console.log('✅ Error handling validated')
   })
+
+  test('should generate nullable fields for optional properties', async () => {
+    console.log('🤖 Testing nullable field generation for optional properties...')
+
+    const optimized = await apiClient.optimizePrompt(
+      SAMPLE_PROMPTS.swedish_contract,
+      'json'
+    )
+
+    const schema = await apiClient.generateSchema(
+      SAMPLE_PROMPTS.swedish_contract,
+      optimized,
+      'json'
+    )
+
+    const props = (schema as any).properties
+    const required = (schema as any).required || []
+
+    console.log(`📋 Schema has ${Object.keys(props).length} properties`)
+    console.log(`📌 ${required.length} required fields: ${required.join(', ')}`)
+
+    // Check that at least some optional fields are nullable
+    let nullableFieldsCount = 0
+    let nonNullableOptionalCount = 0
+
+    for (const [fieldName, fieldSchema] of Object.entries(props)) {
+      const isRequired = required.includes(fieldName)
+      const fieldType = (fieldSchema as any).type
+
+      if (!isRequired && fieldType) {
+        if (Array.isArray(fieldType) && fieldType.includes('null')) {
+          nullableFieldsCount++
+          console.log(`  ✅ Optional field "${fieldName}" is nullable: ${JSON.stringify(fieldType)}`)
+        } else if (fieldType === 'object') {
+          // Objects themselves might not be null, but check nested fields
+          const nestedProps = (fieldSchema as any).properties
+          if (nestedProps) {
+            for (const [nestedName, nestedSchema] of Object.entries(nestedProps)) {
+              const nestedType = (nestedSchema as any).type
+              if (Array.isArray(nestedType) && nestedType.includes('null')) {
+                nullableFieldsCount++
+                console.log(`  ✅ Nested optional field "${fieldName}.${nestedName}" is nullable`)
+              }
+            }
+          }
+        } else {
+          nonNullableOptionalCount++
+          console.log(`  ⚠️  Optional field "${fieldName}" is NOT nullable: ${JSON.stringify(fieldType)}`)
+        }
+      }
+    }
+
+    console.log(`\n📊 Summary:`)
+    console.log(`  - Nullable optional fields: ${nullableFieldsCount}`)
+    console.log(`  - Non-nullable optional fields: ${nonNullableOptionalCount}`)
+
+    // At least some optional fields should be nullable
+    expect(nullableFieldsCount).toBeGreaterThan(0)
+
+    console.log('✅ Schema correctly generates nullable fields for optional properties')
+  })
 })
