@@ -146,6 +146,12 @@ export interface Database {
           enabled: boolean
           supports_json_mode: boolean
           context_window: number
+          deployment_type: string | null
+          model_size: string | null
+          parameter_count: string | null
+          vram_fp16_gb: number | null
+          vram_8bit_gb: number | null
+          vram_4bit_gb: number | null
           created_at: string
         }
         Insert: {
@@ -158,6 +164,12 @@ export interface Database {
           enabled?: boolean
           supports_json_mode?: boolean
           context_window?: number
+          deployment_type?: string | null
+          model_size?: string | null
+          parameter_count?: string | null
+          vram_fp16_gb?: number | null
+          vram_8bit_gb?: number | null
+          vram_4bit_gb?: number | null
           created_at?: string
         }
         Update: {
@@ -170,6 +182,12 @@ export interface Database {
           enabled?: boolean
           supports_json_mode?: boolean
           context_window?: number
+          deployment_type?: string | null
+          model_size?: string | null
+          parameter_count?: string | null
+          vram_fp16_gb?: number | null
+          vram_8bit_gb?: number | null
+          vram_4bit_gb?: number | null
           created_at?: string
         }
       }

@@ -47,37 +47,6 @@ export default function Home() {
           </a>
         </div>
 
-        {/* Features */}
-        <div className="mt-16 pt-16 border-t">
-          <h2 className="text-2xl font-bold mb-8">Key Features</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-6 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold text-lg mb-2">📊 Multi-Model Comparison</h3>
-              <p className="text-gray-600 text-sm">
-                Run up to 16 different LLM models in parallel and compare their extraction accuracy
-              </p>
-            </div>
-            <div className="p-6 bg-green-50 rounded-lg">
-              <h3 className="font-semibold text-lg mb-2">🇸🇪 Swedish Text Optimized</h3>
-              <p className="text-gray-600 text-sm">
-                Specifically designed for Swedish railway infrastructure contracts
-              </p>
-            </div>
-            <div className="p-6 bg-purple-50 rounded-lg">
-              <h3 className="font-semibold text-lg mb-2">💰 Cost Analysis</h3>
-              <p className="text-gray-600 text-sm">
-                Track token usage and costs for each model. Free tier models available
-              </p>
-            </div>
-            <div className="p-6 bg-yellow-50 rounded-lg">
-              <h3 className="font-semibold text-lg mb-2">⚡ Fast Extraction</h3>
-              <p className="text-gray-600 text-sm">
-                Parallel execution with average response time under 5 seconds
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Available Models */}
         <div className="mt-16 pt-16 border-t">
           <h2 className="text-2xl font-bold mb-4">Available Models</h2>

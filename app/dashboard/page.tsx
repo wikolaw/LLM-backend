@@ -284,10 +284,10 @@ export default function DashboardPage() {
   // Show loading while checking auth
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking authentication...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Checking authentication...</p>
         </div>
       </div>
     )
@@ -299,18 +299,18 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">LLM Document Analysis v3.0</h1>
-              <p className="text-sm text-gray-500">Batch Processing with Comprehensive Analytics{userEmail && ` • ${userEmail}`}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">LLM Document Analysis v3.0</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Batch Processing with Comprehensive Analytics{userEmail && ` • ${userEmail}`}</p>
             </div>
             <a
               href="/"
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
             >
               ← Back to Home
             </a>
@@ -330,8 +330,8 @@ export default function DashboardPage() {
                     className={`
                       w-10 h-10 rounded-full flex items-center justify-center font-semibold
                       ${currentStep >= step.num
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700'
+                        ? 'bg-primary-600 dark:bg-primary-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }
                     `}
                   >
@@ -339,7 +339,7 @@ export default function DashboardPage() {
                   </div>
                   <span
                     className={`ml-2 text-sm font-medium ${
-                      currentStep >= step.num ? 'text-gray-900' : 'text-gray-700'
+                      currentStep >= step.num ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-400'
                     }`}
                   >
                     {step.label}
@@ -348,7 +348,7 @@ export default function DashboardPage() {
                 {idx < 3 && (
                   <div
                     className={`flex-1 h-1 mx-4 rounded ${
-                      currentStep > step.num ? 'bg-blue-600' : 'bg-gray-200'
+                      currentStep > step.num ? 'bg-primary-600 dark:bg-primary-500' : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                   />
                 )}
@@ -362,16 +362,16 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="space-y-8">
           {/* Step 1: Upload Documents */}
-          <section className="bg-white rounded-lg shadow-sm p-6">
+          <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">1. Upload Documents</h2>
-                <p className="text-sm text-gray-500 mt-1">Upload one or more PDF, DOCX, or TXT files for batch processing</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">1. Upload Documents</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Upload one or more PDF, DOCX, or TXT files for batch processing</p>
               </div>
               {documentCount > 0 && (
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{documentCount} document{documentCount !== 1 ? 's' : ''} uploaded</p>
-                  <p className="text-xs text-gray-500">{totalCharCount.toLocaleString()} total characters</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{documentCount} document{documentCount !== 1 ? 's' : ''} uploaded</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{totalCharCount.toLocaleString()} total characters</p>
                 </div>
               )}
             </div>
@@ -380,21 +380,21 @@ export default function DashboardPage() {
 
           {/* Step 2: Configure Prompts */}
           {currentStep >= 2 && (
-            <section className="bg-white rounded-lg shadow-sm p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">2. Configure Extraction</h2>
-                <p className="text-sm text-gray-500 mt-1">Set up prompts and schema (applies to all {documentCount} documents)</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">2. Configure Extraction</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Set up prompts and schema (applies to all {documentCount} documents)</p>
               </div>
 
               {/* Batch Name Input */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Batch Job Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Batch Job Name</label>
                 <input
                   type="text"
                   value={batchName}
                   onChange={(e) => setBatchName(e.target.value)}
                   placeholder="E.g., Contract Extraction Batch 1"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
 
@@ -403,7 +403,7 @@ export default function DashboardPage() {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setCurrentStep(3)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
                   disabled={!systemPrompt || !userPrompt || !validationSchema}
                 >
                   Next: Select Models →
@@ -414,10 +414,10 @@ export default function DashboardPage() {
 
           {/* Step 3: Select Models & Run */}
           {currentStep >= 3 && (
-            <section className="bg-white rounded-lg shadow-sm p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">3. Run Batch Processing</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">3. Run Batch Processing</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Select models to run on all {documentCount} documents
                 </p>
               </div>
@@ -429,20 +429,20 @@ export default function DashboardPage() {
 
               {/* Batch Summary */}
               {selectedModels.length > 0 && (
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Batch Summary</h4>
+                <div className="mt-6 p-4 bg-primary-50/50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-lg">
+                  <h4 className="text-sm font-medium text-primary-900 dark:text-primary-100 mb-2">Batch Summary</h4>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="text-blue-700">Documents:</p>
-                      <p className="font-semibold text-blue-900">{documentCount}</p>
+                      <p className="text-primary-700 dark:text-primary-300">Documents:</p>
+                      <p className="font-semibold text-primary-900 dark:text-primary-100">{documentCount}</p>
                     </div>
                     <div>
-                      <p className="text-blue-700">Models:</p>
-                      <p className="font-semibold text-blue-900">{selectedModels.length}</p>
+                      <p className="text-primary-700 dark:text-primary-300">Models:</p>
+                      <p className="font-semibold text-primary-900 dark:text-primary-100">{selectedModels.length}</p>
                     </div>
                     <div>
-                      <p className="text-blue-700">Total Runs:</p>
-                      <p className="font-semibold text-blue-900">{documentCount * selectedModels.length}</p>
+                      <p className="text-primary-700 dark:text-primary-300">Total Runs:</p>
+                      <p className="font-semibold text-primary-900 dark:text-primary-100">{documentCount * selectedModels.length}</p>
                     </div>
                   </div>
                 </div>
@@ -452,7 +452,7 @@ export default function DashboardPage() {
               <div className="mt-6 flex items-center justify-between">
                 <button
                   onClick={() => setCurrentStep(2)}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                   disabled={isProcessing}
                 >
                   ← Back to Configuration
@@ -463,8 +463,8 @@ export default function DashboardPage() {
                   className={`
                     px-8 py-3 rounded-lg font-semibold text-white transition-colors
                     ${canRunBatch && !isCreatingBatch && !isProcessing
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-gray-400 cursor-not-allowed'
+                      ? 'bg-success-600 dark:bg-success-500 hover:bg-success-700 dark:hover:bg-success-600'
+                      : 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed'
                     }
                   `}
                 >
@@ -486,28 +486,28 @@ export default function DashboardPage() {
 
               {/* Progress Display */}
               {isProcessing && batchStatus && (
-                <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                <div className="mt-6 p-6 bg-gradient-to-r from-primary-50/50 to-primary-100/50 dark:from-primary-950/30 dark:to-primary-900/30 border border-primary-200 dark:border-primary-800 rounded-lg">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className="text-lg font-semibold text-blue-900">Processing Batch...</h4>
+                      <h4 className="text-lg font-semibold text-primary-900 dark:text-primary-100">Processing Batch...</h4>
                       {batchStatus.currentDocument && (
-                        <p className="text-sm text-blue-700 mt-1">
+                        <p className="text-sm text-primary-700 dark:text-primary-300 mt-1">
                           Currently processing: <span className="font-medium">{batchStatus.currentDocument}</span>
                         </p>
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-blue-900">
+                      <p className="text-2xl font-bold text-primary-900 dark:text-primary-100">
                         {batchStatus.completedDocuments}/{batchStatus.totalDocuments}
                       </p>
-                      <p className="text-xs text-blue-600">documents processed</p>
+                      <p className="text-xs text-primary-600 dark:text-primary-400">documents processed</p>
                     </div>
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="w-full bg-blue-200 rounded-full h-4 overflow-hidden">
+                  <div className="w-full bg-primary-200 dark:bg-primary-900 rounded-full h-4 overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 h-4 transition-all duration-500 flex items-center justify-center"
+                      className="bg-gradient-to-r from-primary-600 to-primary-700 dark:from-primary-500 dark:to-primary-600 h-4 transition-all duration-500 flex items-center justify-center"
                       style={{
                         width: `${(batchStatus.completedDocuments / batchStatus.totalDocuments) * 100}%`
                       }}
@@ -520,13 +520,13 @@ export default function DashboardPage() {
 
                   {/* Stats */}
                   <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-white rounded-lg">
-                      <p className="text-sm text-gray-600">Successful</p>
-                      <p className="text-xl font-bold text-green-600">{batchStatus.successfulRuns}</p>
+                    <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Successful</p>
+                      <p className="text-xl font-bold text-success-600 dark:text-success-500">{batchStatus.successfulRuns}</p>
                     </div>
-                    <div className="text-center p-3 bg-white rounded-lg">
-                      <p className="text-sm text-gray-600">Failed</p>
-                      <p className="text-xl font-bold text-red-600">{batchStatus.failedRuns}</p>
+                    <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Failed</p>
+                      <p className="text-xl font-bold text-error-600 dark:text-error-500">{batchStatus.failedRuns}</p>
                     </div>
                   </div>
                 </div>
@@ -534,23 +534,20 @@ export default function DashboardPage() {
 
               {/* Timeout Warning */}
               {isProcessing && timeoutWarning && (
-                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-                  <span className="text-2xl">⚠️</span>
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900">
-                      Processing Taking Longer Than Expected
-                    </p>
-                    <p className="text-sm text-amber-700 mt-1">
-                      Your batch is still being processed in the background. Status will update automatically when complete.
-                    </p>
-                  </div>
+                <div className="mt-6 p-4 bg-warning-50 dark:bg-warning-950/30 border border-warning-200 dark:border-warning-800 rounded-lg">
+                  <p className="text-sm font-semibold text-warning-900 dark:text-warning-100">
+                    Processing Taking Longer Than Expected
+                  </p>
+                  <p className="text-sm text-warning-700 dark:text-warning-300 mt-1">
+                    Your batch is still being processed in the background. Status will update automatically when complete.
+                  </p>
                 </div>
               )}
 
               {/* Error Display */}
               {batchError && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-900">{batchError}</p>
+                <div className="mt-4 p-4 bg-error-50 dark:bg-error-950/30 border border-error-200 dark:border-error-800 rounded-lg">
+                  <p className="text-sm text-error-900 dark:text-error-100">{batchError}</p>
                 </div>
               )}
             </section>
@@ -558,7 +555,7 @@ export default function DashboardPage() {
 
           {/* Step 4: View Analytics */}
           {currentStep >= 4 && batchAnalytics && batchJobId && (
-            <section className="bg-white rounded-lg shadow-sm p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               <BatchResults analytics={batchAnalytics} batchJobName={batchName} batchJobId={batchJobId} />
             </section>
           )}

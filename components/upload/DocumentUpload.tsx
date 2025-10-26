@@ -168,7 +168,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
         className={`
           border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
           transition-colors duration-200
-          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+          ${isDragActive ? 'border-primary-500 dark:border-primary-400 bg-primary-50 dark:bg-primary-950/30' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}
           ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
         `}
       >
@@ -176,7 +176,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
 
         <div className="space-y-4">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
             stroke="currentColor"
             fill="none"
             viewBox="0 0 48 48"
@@ -191,16 +191,16 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
           </svg>
 
           {isDragActive ? (
-            <p className="text-lg text-blue-600">Drop files here...</p>
+            <p className="text-lg text-primary-600 dark:text-primary-400">Drop files here...</p>
           ) : (
             <>
-              <p className="text-lg text-gray-700">
+              <p className="text-lg text-gray-700 dark:text-gray-300">
                 Drag and drop documents here, or click to select
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Upload multiple files for batch processing
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500 dark:text-gray-500">
                 Supported: PDF, DOCX, DOC, TXT (max 50MB each)
               </p>
             </>
@@ -211,7 +211,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
       {/* Uploaded documents list */}
       {uploadedDocs.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Uploaded Documents ({completedDocs.length}/{uploadedDocs.length})
           </h4>
           <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -220,30 +220,30 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
                 key={doc.id}
                 className={`
                   flex items-center justify-between p-3 rounded-lg border
-                  ${doc.status === 'completed' ? 'bg-green-50 border-green-200' : ''}
-                  ${doc.status === 'uploading' || doc.status === 'extracting' ? 'bg-blue-50 border-blue-200' : ''}
-                  ${doc.status === 'failed' ? 'bg-red-50 border-red-200' : ''}
+                  ${doc.status === 'completed' ? 'bg-success-50 dark:bg-success-950/30 border-success-200 dark:border-success-800' : ''}
+                  ${doc.status === 'uploading' || doc.status === 'extracting' ? 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-800' : ''}
+                  ${doc.status === 'failed' ? 'bg-error-50 dark:bg-error-950/30 border-error-200 dark:border-error-800' : ''}
                 `}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                     {doc.filename}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     {doc.status === 'uploading' && (
-                      <span className="text-xs text-blue-600">Uploading...</span>
+                      <span className="text-xs text-primary-600 dark:text-primary-400">Uploading...</span>
                     )}
                     {doc.status === 'extracting' && (
-                      <span className="text-xs text-blue-600">Extracting text...</span>
+                      <span className="text-xs text-primary-600 dark:text-primary-400">Extracting text...</span>
                     )}
                     {doc.status === 'completed' && (
-                      <span className="text-xs text-green-600">
-                        ✓ {doc.charCount.toLocaleString()} characters
+                      <span className="text-xs text-success-600 dark:text-success-400">
+                        Done - {doc.charCount.toLocaleString()} characters
                       </span>
                     )}
                     {doc.status === 'failed' && (
-                      <span className="text-xs text-red-600">
-                        ✗ {doc.error || 'Failed'}
+                      <span className="text-xs text-error-600 dark:text-error-400">
+                        Failed - {doc.error || 'Unknown error'}
                       </span>
                     )}
                   </div>
@@ -252,7 +252,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
                   {doc.status === 'completed' && (
                     <button
                       onClick={() => removeDocument(doc.id)}
-                      className="text-gray-400 hover:text-red-600 transition-colors"
+                      className="text-gray-400 dark:text-gray-500 hover:text-error-600 dark:hover:text-error-400 transition-colors"
                       title="Remove document"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,7 +261,7 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
                     </button>
                   )}
                   {(doc.status === 'uploading' || doc.status === 'extracting') && (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 dark:border-primary-400"></div>
                   )}
                 </div>
               </div>

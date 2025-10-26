@@ -92,46 +92,6 @@ export async function GET(
     // Build document ID to filename map
     const docMap = new Map(documents?.map(d => [d.id, d.filename]) || [])
 
-    // Calculate global summary
-    const totalRuns = outputs?.length || 0
-    const successfulOutputs = outputs?.filter(o => o.validation_passed) || []
-    const successRate = totalRuns > 0 ? successfulOutputs.length / totalRuns : 0
-
-    const totalCost = outputs?.reduce((sum, o) => {
-      const costIn = parseFloat(o.cost_in?.toString() || '0')
-      const costOut = parseFloat(o.cost_out?.toString() || '0')
-      return sum + costIn + costOut
-    }, 0) || 0
-
-    const avgExecutionTime = totalRuns > 0
-      ? outputs?.reduce((sum, o) => sum + (o.execution_time_ms || 0), 0) / totalRuns
-      : 0
-
-    // Calculate overall 3-level validation rates
-    const jsonValidOutputs = outputs?.filter(o => o.json_valid === true) || []
-    const attributesValidOutputs = outputs?.filter(o => o.attributes_valid === true) || []
-    const formatsValidOutputs = outputs?.filter(o => o.formats_valid === true) || []
-
-    const overallJsonValidityRate = totalRuns > 0 ? (jsonValidOutputs.length / totalRuns) * 100 : 0
-    const overallAttributeValidityRate = totalRuns > 0 ? (attributesValidOutputs.length / totalRuns) * 100 : 0
-    const overallFormatValidityRate = totalRuns > 0 ? (formatsValidOutputs.length / totalRuns) * 100 : 0
-
-    // Aggregate top guidance suggestions across all models
-    const allGuidance = new Map<string, number>()
-    for (const analytic of analytics || []) {
-      const breakdown = analytic.validation_breakdown as any
-      if (breakdown?.commonGuidance) {
-        for (const guidance of breakdown.commonGuidance) {
-          const count = allGuidance.get(guidance) || 0
-          allGuidance.set(guidance, count + 1)
-        }
-      }
-    }
-    const topGuidanceSuggestions = Array.from(allGuidance.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([guidance]) => guidance)
-
     // Build per-document results
     const documentResults = documentIds.map(docId => {
       const docRuns = runs?.filter(r => r.document_id === docId) || []
@@ -207,17 +167,6 @@ export async function GET(
     )
 
     return NextResponse.json({
-      globalSummary: {
-        totalDocuments: batchJob.total_documents,
-        totalRuns,
-        successRate,
-        totalCost,
-        avgExecutionTime: Math.round(avgExecutionTime),
-        overallJsonValidityRate: Math.round(overallJsonValidityRate * 100) / 100,
-        overallAttributeValidityRate: Math.round(overallAttributeValidityRate * 100) / 100,
-        overallFormatValidityRate: Math.round(overallFormatValidityRate * 100) / 100,
-        topGuidanceSuggestions
-      },
       modelAnalytics: (analytics || []).map(a => ({
         model: a.model,
         successCount: a.success_count,

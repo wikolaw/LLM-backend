@@ -466,7 +466,7 @@ export async function generateBatchAnalytics(
   if (docsError) throw docsError
 
   // Get unique models
-  const uniqueModels = [...new Set(outputs.map((o: Output) => o.model))]
+  const uniqueModels: string[] = [...new Set<string>(outputs.map((o: Output) => o.model))]
 
   // Calculate per-model analytics
   const modelAnalytics = uniqueModels.map(model =>

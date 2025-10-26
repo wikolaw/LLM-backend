@@ -215,7 +215,6 @@ validation_breakdown JSONB            -- Aggregated validation details
 3. System processes all documents asynchronously with selected models
 4. Real-time progress updates (polling every 2 seconds)
 5. Comprehensive analytics with:
-   - **Global summary** (overall success rate, cost, time)
    - **Per-model analysis** (which models perform best)
    - **Per-document details** (which documents are problematic)
    - **Attribute failure analysis** (which schema fields fail most, with pattern insights)
@@ -255,8 +254,7 @@ Frontend polls /api/batch/[id]/status (2s interval)
   ↓
 When complete → Fetch /api/batch/[id]/analytics
   ↓
-Display Batch Results (4 tabs):
-  - Global Summary
+Display Batch Results (3 tabs):
   - Per-Model Analysis
   - Per-Document Details
   - Attribute Failure Analysis
@@ -291,11 +289,6 @@ Display Batch Results (4 tabs):
 - Status tracking: pending → processing → completed/failed
 
 ### 3. Comprehensive Analytics
-
-#### Global Summary
-- Total documents, total runs, overall success rate
-- Total cost, average execution time
-- Top 3 best performing models
 
 #### Per-Model Analysis
 - Success/failure counts and rates
@@ -569,7 +562,7 @@ LLM-backend/
 | **Validation** | Quality scores | JSON Schema | JSON Schema | JSON Schema | JSON Schema |
 | **Processing** | Synchronous | Synchronous | Asynchronous | Asynchronous | Asynchronous |
 | **Progress updates** | None | Spinner | Real-time polling | Real-time polling | Real-time polling |
-| **Results** | Basic comparison | Validation status | 4-tab analytics | 4-tab analytics | 4-tab analytics |
+| **Results** | Basic comparison | Validation status | 3-tab analytics | 3-tab analytics | 3-tab analytics |
 | **Failure analysis** | None | Basic errors | Attribute tracking | Attribute tracking | Attribute tracking |
 | **Insights** | None | None | Pattern detection | Pattern detection | Pattern detection |
 | **LLM Extraction** | Working | Working | Working | **BROKEN (0%)** | **✅ FIXED (100%)** |
@@ -603,8 +596,7 @@ LLM-backend/
    - Live successful/failed run counts
    - Processing happens in Edge Function (doesn't block UI)
 
-5. **View Analytics** (4 tabs)
-   - **Global Summary**: Overall metrics, top performers
+5. **View Analytics** (3 tabs)
    - **Per-Model Analysis**: Click model for detailed breakdown
    - **Per-Document Details**: Search/filter documents, see status
    - **Attribute Failures**: Which fields fail, why, pattern insights
@@ -630,18 +622,46 @@ LLM-backend/
   - **Reasoning:** DeepSeek R1, OpenAI o3 Mini
   - **Budget:** NVIDIA Nemotron 49B, Qwen3 Next 80B
 
-### Model Tiers (Updated January 2025)
+### Model Categories (Updated January 2025)
 
-**Quality-Focused Configuration:** All models verified working on OpenRouter. Free models disabled by default.
+**Deployment-Focused Configuration:** Models categorized by deployment type (On-Prem vs Cloud) and size. All models verified working on OpenRouter.
 
-#### Tier 1: Premium Quality (5 models)
+#### On-Premises Deployable Models
+
+Open-weight models that can be self-hosted. VRAM requirements shown for FP16, 8-bit, and 4-bit quantization.
+
+**Small (7-8B Parameters) - Entry-level models**
+- Meta Llama 3.1 8B Instruct - 16GB / 8GB / 4GB VRAM - Free
+- Mistral 7B Instruct - 14GB / 7GB / 3.5GB VRAM - Free
+- DeepSeek Chat V3 - 14GB / 7GB / 3.5GB VRAM - $0.14/1M tokens
+
+*Typical hardware: RTX 4090 (24GB), A5000 (24GB)*
+
+**Medium (30-49B Parameters) - Advanced models**
+- NVIDIA Llama 3.3 Nemotron Super 49B - 98GB / 49GB / 24.5GB VRAM - $0.10/1M tokens
+- Qwen QwQ 32B (Reasoning) - 64GB / 32GB / 16GB VRAM - $0.10/1M tokens
+
+*Typical hardware: A100 80GB, H100 80GB, or multi-GPU setups*
+
+**Large (70-80B Parameters) - High-performance models**
+- Meta Llama 3.3 70B Instruct - 140GB / 70GB / 35GB VRAM - $0.35/1M tokens
+- Qwen3 Next 80B Instruct - 160GB / 80GB / 40GB VRAM - $0.10/1M tokens
+- Nous Hermes 4 70B - 140GB / 70GB / 35GB VRAM - $0.11/1M tokens
+
+*Typical hardware: Multi-GPU clusters (2-4x A100/H100)*
+
+#### Cloud-Only Models
+
+Proprietary models accessible via API. No hardware requirements - pay per use.
+
+**Tier 1: Premium Quality (5 models)**
 - OpenAI GPT-5 Pro - $15/1M tokens
 - Anthropic Claude Sonnet 4.5 - $3/1M tokens
 - Anthropic Claude 3.5 Sonnet - $3/1M tokens
 - OpenAI GPT-5 Codex - $1.25/1M tokens
 - Qwen3 Max - $1.20/1M tokens
 
-#### Tier 2: High Quality Mid-Range (6 models)
+**Tier 2: High Quality Mid-Range (6 models)**
 - Google Gemini 2.5 Flash Preview - $0.30/1M tokens
 - OpenAI GPT-4o - $2.50/1M tokens
 - OpenAI GPT-4o Mini - $0.15/1M tokens
@@ -649,25 +669,12 @@ LLM-backend/
 - DeepSeek V3.1 Terminus - $0.23/1M tokens
 - xAI Grok 2 - $2.00/1M tokens
 
-#### Tier 3: Budget Performance (5 models)
-- NVIDIA Llama 3.3 Nemotron Super 49B - $0.10/1M tokens
-- Qwen3 Next 80B Instruct - $0.10/1M tokens
-- Mistral Large - $2.00/1M tokens
-- Nous Hermes 4 70B - $0.11/1M tokens
-- Meta Llama 3.3 70B Instruct - $0.35/1M tokens
-
-#### Tier 4: Specialized/Reasoning (4 models)
+**Tier 3: Specialized/Reasoning (3 models)**
 - DeepSeek R1 (Reasoning) - $0.55/1M tokens
 - OpenAI o3 Mini (Reasoning) - $1.00/1M tokens
-- Qwen QwQ 32B (Reasoning) - $0.10/1M tokens
-- DeepSeek Chat V3 - $0.14/1M tokens
+- Mistral Large - $2.00/1M tokens
 
-#### Tier 5: Free Models (3 models - DISABLED)
-- Llama 3.1 8B Instruct (Free) - Disabled
-- Mistral 7B Instruct (Free) - Disabled
-- DeepSeek Chat (Free) - Disabled
-
-**Note:** Free models are not enabled by default to ensure quality. Enable them in database if needed for testing.
+**Note:** Free on-prem models (Llama 3.1 8B, Mistral 7B) are disabled by default but can be enabled for testing. Cost is relevant - free models may not handle production volume.
 
 ### Test User
 - **Email:** `test@playwright.local`
@@ -1165,7 +1172,7 @@ When continuing work:
 
 **What's new in v3.1?** Universal flexible prompt optimizer that generates comprehensive 400-800 word prompts for ANY document type (not just Swedish contracts). Works dynamically for contracts, invoices, resumes, medical records, etc. in any language.
 
-**What's new in v3.0?** Multi-document batch processing (1-N docs), async processing, real-time progress, 4-tab analytics, attribute-level failure tracking, pattern detection.
+**What's new in v3.0?** Multi-document batch processing (1-N docs), async processing, real-time progress, 3-tab analytics, attribute-level failure tracking, pattern detection.
 
 **What works?** ✅ **EVERYTHING** - Upload multiple docs in ANY language, AI prompt optimization (400-800 words, domain-agnostic), AI schema generation, **LLM extraction via OpenRouter**, JSON schema validation, async batch processing, real-time polling, comprehensive analytics with insights.
 

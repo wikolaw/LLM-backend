@@ -5,18 +5,6 @@ import { InfoIcon } from '@/components/ui/InfoIcon'
 import { JsonSchemaViewer } from './JsonSchemaViewer'
 
 // Types
-interface GlobalSummary {
-  totalDocuments: number
-  totalRuns: number
-  successRate: number
-  totalCost: number
-  avgExecutionTime: number
-  overallJsonValidityRate?: number
-  overallAttributeValidityRate?: number
-  overallFormatValidityRate?: number
-  topGuidanceSuggestions?: string[]
-}
-
 interface ModelAnalytics {
   model: string
   successCount: number
@@ -59,7 +47,6 @@ interface AttributeFailure {
 }
 
 interface BatchAnalytics {
-  globalSummary: GlobalSummary
   modelAnalytics: ModelAnalytics[]
   documentResults: DocumentResult[]
   attributeFailures: AttributeFailure[]
@@ -71,7 +58,7 @@ interface BatchResultsProps {
   batchJobId: string
 }
 
-type TabType = 'summary' | 'models' | 'documents' | 'attributes' | 'detailed'
+type TabType = 'models' | 'documents' | 'attributes' | 'detailed'
 
 // Helper function to render progress bar with color
 function ValidationProgressBar({ percentage }: { percentage?: number }) {
@@ -101,17 +88,15 @@ function ValidationProgressBar({ percentage }: { percentage?: number }) {
 }
 
 export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResultsProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('summary')
+  const [activeTab, setActiveTab] = useState<TabType>('models')
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null)
-  const [showGuidanceModal, setShowGuidanceModal] = useState(false)
 
-  const tabs: Array<{ id: TabType; label: string; icon: string }> = [
-    { id: 'summary', label: 'Global Summary', icon: '📊' },
-    { id: 'models', label: 'Per-Model Analysis', icon: '🤖' },
-    { id: 'documents', label: 'Per-Document Details', icon: '📄' },
-    { id: 'attributes', label: 'Attribute Failures', icon: '🔍' },
-    { id: 'detailed', label: 'Detailed Results', icon: '🔬' }
+  const tabs: Array<{ id: TabType; label: string }> = [
+    { id: 'models', label: 'Per-Model Analysis' },
+    { id: 'documents', label: 'Per-Document Details' },
+    { id: 'attributes', label: 'Attribute Failures' },
+    { id: 'detailed', label: 'Detailed Results' }
   ]
 
   return (
@@ -119,15 +104,15 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{batchJobName}</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Batch Processing Results - {analytics.globalSummary.totalDocuments} documents, {analytics.modelAnalytics.length} models
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{batchJobName}</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Batch Processing Results - {analytics.documentResults.length} documents, {analytics.modelAnalytics.length} models
           </p>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
             <button
@@ -136,12 +121,11 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
               className={`
                 flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
                 ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
                 }
               `}
             >
-              <span>{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -150,13 +134,6 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
 
       {/* Tab Content */}
       <div className="mt-6">
-        {activeTab === 'summary' && (
-          <GlobalSummaryTab
-            summary={analytics.globalSummary}
-            modelAnalytics={analytics.modelAnalytics}
-            onOpenGuidanceModal={() => setShowGuidanceModal(true)}
-          />
-        )}
         {activeTab === 'models' && (
           <ModelAnalysisTab
             modelAnalytics={analytics.modelAnalytics}
@@ -184,190 +161,12 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
           />
         )}
       </div>
-
-      {/* Prompt Guidance Modal */}
-      {showGuidanceModal && (
-        <PromptGuidanceModal
-          modelAnalytics={analytics.modelAnalytics}
-          onClose={() => setShowGuidanceModal(false)}
-        />
-      )}
     </div>
   )
 }
 
 // ============================================================================
-// Tab 1: Global Summary
-// ============================================================================
-
-function GlobalSummaryTab({
-  summary,
-  modelAnalytics,
-  onOpenGuidanceModal
-}: {
-  summary: GlobalSummary
-  modelAnalytics: ModelAnalytics[]
-  onOpenGuidanceModal: () => void
-}) {
-  const topModels = [...modelAnalytics]
-    .sort((a, b) => b.successRate - a.successRate)
-    .slice(0, 3)
-
-  const hasGuidance = summary.topGuidanceSuggestions && summary.topGuidanceSuggestions.length > 0
-
-  // Determine batch status
-  const totalRuns = summary.totalRuns
-  const successfulRuns = Math.round(summary.successRate * totalRuns)
-  const failedRuns = totalRuns - successfulRuns
-  const allPassed = failedRuns === 0
-  const allFailed = successfulRuns === 0
-  const partialSuccess = failedRuns > 0 && successfulRuns > 0
-
-  const getStatusBadge = () => {
-    if (allFailed) {
-      return (
-        <div className="flex items-center gap-2 px-4 py-2 bg-red-100 border border-red-300 rounded-lg">
-          <span className="text-2xl">🔴</span>
-          <div>
-            <p className="text-sm font-semibold text-red-900">All Models Failed</p>
-            <p className="text-xs text-red-700">No successful extractions - check model configurations and prompts</p>
-          </div>
-        </div>
-      )
-    }
-    if (partialSuccess) {
-      return (
-        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-lg">
-          <span className="text-2xl">🟡</span>
-          <div>
-            <p className="text-sm font-semibold text-yellow-900">Completed with Errors</p>
-            <p className="text-xs text-yellow-700">
-              {successfulRuns} succeeded, {failedRuns} failed - check Per-Model Analysis for details
-            </p>
-          </div>
-        </div>
-      )
-    }
-    return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-green-100 border border-green-300 rounded-lg">
-        <span className="text-2xl">🟢</span>
-        <div>
-          <p className="text-sm font-semibold text-green-900">Completed Successfully</p>
-          <p className="text-xs text-green-700">All {totalRuns} runs passed validation</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Batch Status Badge */}
-      {getStatusBadge()}
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-6 bg-white border rounded-lg shadow-sm">
-          <p className="text-sm text-gray-500">Total Documents</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{summary.totalDocuments}</p>
-        </div>
-        <div className="p-6 bg-green-50 border border-green-200 rounded-lg shadow-sm">
-          <p className="text-sm text-green-800">Success Rate</p>
-          <p className="text-3xl font-bold text-green-900 mt-2">
-            {Math.round(summary.successRate * 100)}%
-          </p>
-          <p className="text-xs text-green-600 mt-1">
-            {Math.round(summary.successRate * summary.totalRuns)} / {summary.totalRuns} runs validated
-          </p>
-        </div>
-        <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-          <p className="text-sm text-blue-800">Avg Time</p>
-          <p className="text-3xl font-bold text-blue-900 mt-2">
-            {Math.round(summary.avgExecutionTime)}ms
-          </p>
-        </div>
-        <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm">
-          <p className="text-sm text-yellow-800">Total Cost</p>
-          <p className="text-3xl font-bold text-yellow-900 mt-2">
-            ${summary.totalCost.toFixed(4)}
-          </p>
-        </div>
-      </div>
-
-      {/* Top Performers */}
-      <div className="bg-white border rounded-lg p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-2xl">🏆</span>
-          <h3 className="text-lg font-semibold text-gray-900">Top Performing Models</h3>
-          <InfoIcon tooltip="Models ranked by validation success rate" />
-        </div>
-        <div className="space-y-3">
-          {topModels.map((model, idx) => (
-            <div key={model.model} className="flex items-center gap-4">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-900 font-semibold">
-                {idx + 1}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{model.model}</p>
-                <div className="flex items-center gap-4 mt-1">
-                  <span className="text-xs text-gray-500">
-                    {Math.round(model.successRate * 100)}% success
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {model.avgExecutionTime}ms avg time
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    ${model.totalCost.toFixed(6)} total
-                  </span>
-                </div>
-              </div>
-              <div className="w-32">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-green-600 h-2 rounded-full"
-                    style={{ width: `${model.successRate * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Prompt Improvement Tips */}
-      {hasGuidance && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">💡</span>
-              <h3 className="text-lg font-semibold text-amber-900">Prompt Improvement Tips</h3>
-              <InfoIcon tooltip="Most common suggestions to improve extraction quality across all models" />
-            </div>
-            <button
-              onClick={onOpenGuidanceModal}
-              className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200 transition-colors"
-            >
-              View All Suggestions
-            </button>
-          </div>
-          <div className="space-y-2">
-            {summary.topGuidanceSuggestions!.slice(0, 5).map((guidance, idx) => (
-              <div key={idx} className="p-3 bg-white border border-amber-200 rounded text-sm flex items-start gap-2">
-                <span className="text-amber-600 font-bold text-lg">→</span>
-                <p className="flex-1 text-amber-900">{guidance}</p>
-              </div>
-            ))}
-          </div>
-          {summary.topGuidanceSuggestions!.length === 0 && (
-            <p className="text-sm text-amber-700">No guidance available yet. Guidance will appear after processing batch jobs with validation failures.</p>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Tab 2: Per-Model Analysis
+// Per-Model Analysis
 // ============================================================================
 
 function ModelAnalysisTab({
@@ -383,76 +182,76 @@ function ModelAnalysisTab({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Model
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Success Rate
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 <div className="flex items-center gap-1">
                   JSON Valid
-                  <InfoIcon tooltip="Level 1: Percentage of runs with valid JSON syntax" className="text-gray-400" />
+                  <InfoIcon tooltip="Level 1: Percentage of runs with valid JSON syntax" className="text-gray-400 dark:text-gray-500" />
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 <div className="flex items-center gap-1">
                   Attributes
-                  <InfoIcon tooltip="Level 2: Percentage with correct field names" className="text-gray-400" />
+                  <InfoIcon tooltip="Level 2: Percentage with correct field names" className="text-gray-400 dark:text-gray-500" />
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 <div className="flex items-center gap-1">
                   Formats
-                  <InfoIcon tooltip="Level 3: Percentage with correct value formats" className="text-gray-400" />
+                  <InfoIcon tooltip="Level 3: Percentage with correct value formats" className="text-gray-400 dark:text-gray-500" />
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Avg Time
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Total Cost
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {sortedModels.map((model) => (
               <tr
                 key={model.model}
-                className={`hover:bg-gray-50 cursor-pointer ${
-                  selectedModel === model.model ? 'bg-blue-50' : ''
+                className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
+                  selectedModel === model.model ? 'bg-primary-50/50 dark:bg-primary-950/30' : ''
                 }`}
                 onClick={() => onSelectModel(model.model === selectedModel ? null : model.model)}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{model.model}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{model.model}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
                     {model.successCount + model.failureCount} runs
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {Math.round(model.successRate * 100)}%
                     </span>
-                    <div className="w-20 bg-gray-200 rounded-full h-2">
+                    <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full ${
                           model.successRate >= 0.8
-                            ? 'bg-green-600'
+                            ? 'bg-success-600 dark:bg-success-500'
                             : model.successRate >= 0.5
-                            ? 'bg-yellow-600'
-                            : 'bg-red-600'
+                            ? 'bg-warning-600 dark:bg-warning-500'
+                            : 'bg-error-600 dark:bg-error-500'
                         }`}
                         style={{ width: `${model.successRate * 100}%` }}
                       ></div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                     {model.successCount} / {model.successCount + model.failureCount}
                   </div>
                 </td>
@@ -465,10 +264,10 @@ function ModelAnalysisTab({
                 <td className="px-4 py-4">
                   <ValidationProgressBar percentage={model.formatValidityRate} />
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                   {model.avgExecutionTime}ms
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                   ${model.totalCost.toFixed(6)}
                 </td>
               </tr>
@@ -490,21 +289,21 @@ function ModelAnalysisTab({
 
             return (
               <>
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{model.model} - Detailed Analysis</h3>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">{model.model} - Detailed Analysis</h3>
 
                   {/* 3-Level Validation Breakdown */}
                   {hasValidationData && (
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-3">
-                        <h4 className="text-sm font-medium text-gray-700">Validation Level Breakdown</h4>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Validation Level Breakdown</h4>
                         <InfoIcon tooltip="Progressive validation showing which level this model reaches" />
                       </div>
-                      <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                      <div className="space-y-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-700">Level 1: JSON Validity</span>
-                            <InfoIcon tooltip="Percentage of runs producing valid, parseable JSON" className="text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Level 1: JSON Validity</span>
+                            <InfoIcon tooltip="Percentage of runs producing valid, parseable JSON" className="text-gray-400 dark:text-gray-500" />
                           </div>
                           <div className="flex-1 ml-4 max-w-xs">
                             <ValidationProgressBar percentage={model.jsonValidityRate} />
@@ -512,8 +311,8 @@ function ModelAnalysisTab({
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-700">Level 2: Attribute Validity</span>
-                            <InfoIcon tooltip="Percentage with correct field names and structure" className="text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Level 2: Attribute Validity</span>
+                            <InfoIcon tooltip="Percentage with correct field names and structure" className="text-gray-400 dark:text-gray-500" />
                           </div>
                           <div className="flex-1 ml-4 max-w-xs">
                             <ValidationProgressBar percentage={model.attributeValidityRate} />
@@ -521,8 +320,8 @@ function ModelAnalysisTab({
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-700">Level 3: Format Validity</span>
-                            <InfoIcon tooltip="Percentage with correct value types and formats" className="text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Level 3: Format Validity</span>
+                            <InfoIcon tooltip="Percentage with correct value types and formats" className="text-gray-400 dark:text-gray-500" />
                           </div>
                           <div className="flex-1 ml-4 max-w-xs">
                             <ValidationProgressBar percentage={model.formatValidityRate} />
@@ -536,33 +335,28 @@ function ModelAnalysisTab({
                   {model.validationBreakdown?.commonGuidance && model.validationBreakdown.commonGuidance.length > 0 && (
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-3">
-                        <h4 className="text-sm font-medium text-gray-700">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           {model.commonErrors.length > 0 ? 'Troubleshooting Guidance' : 'Prompt Improvement Suggestions'}
                         </h4>
                         <InfoIcon tooltip="Specific guidance to resolve errors or improve extraction quality" />
                       </div>
                       <div className="space-y-2">
                         {model.validationBreakdown.commonGuidance.slice(0, 5).map((guidance, idx) => {
-                          // Determine guidance type for styling
-                          const isError = guidance.includes('🔐') || guidance.includes('⏱️') ||
-                                         guidance.includes('❌') || guidance.includes('🔧') ||
-                                         guidance.includes('🔍') || guidance.includes('⚠️')
+                          // Determine guidance type for styling (check for error indicator text, not emojis)
+                          const isError = guidance.toLowerCase().includes('error') ||
+                                         guidance.toLowerCase().includes('failed') ||
+                                         guidance.toLowerCase().includes('invalid')
 
                           return (
                             <div
                               key={idx}
-                              className={`p-3 border rounded text-sm flex items-start gap-2 ${
+                              className={`p-3 border rounded text-sm ${
                                 isError
-                                  ? 'bg-red-50 border-red-200'
-                                  : 'bg-blue-50 border-blue-200'
+                                  ? 'bg-error-50 dark:bg-error-950/30 border-error-200 dark:border-error-800 text-error-900 dark:text-error-100'
+                                  : 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-800 text-primary-900 dark:text-primary-100'
                               }`}
                             >
-                              <span className={`font-bold ${isError ? 'text-red-600' : 'text-blue-600'}`}>
-                                {isError ? '⚠️' : '💡'}
-                              </span>
-                              <p className={`flex-1 ${isError ? 'text-red-900' : 'text-blue-900'}`}>
-                                {guidance}
-                              </p>
+                              {guidance}
                             </div>
                           )
                         })}
@@ -573,59 +367,54 @@ function ModelAnalysisTab({
                   {/* Common Errors - Now Categorized */}
                   {model.commonErrors.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">Error Details</h4>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Error Details</h4>
                       <div className="space-y-3">
                         {model.commonErrors.slice(0, 5).map((error, idx) => {
-                          // Determine error category for icon and color
+                          // Determine error category for styling
                           const getErrorStyle = (errorText: string) => {
                             if (errorText.includes('[Authentication Error]')) {
-                              return { icon: '🔐', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-900', category: 'Authentication' }
+                              return { bg: 'bg-purple-50 dark:bg-purple-950/30', border: 'border-purple-200 dark:border-purple-800', text: 'text-purple-900 dark:text-purple-100' }
                             }
                             if (errorText.includes('[Rate Limit]')) {
-                              return { icon: '⏱️', bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-900', category: 'Rate Limit' }
+                              return { bg: 'bg-warning-50 dark:bg-warning-950/30', border: 'border-warning-200 dark:border-warning-800', text: 'text-warning-900 dark:text-warning-100' }
                             }
                             if (errorText.includes('[Timeout]')) {
-                              return { icon: '⏳', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900', category: 'Timeout' }
+                              return { bg: 'bg-warning-50 dark:bg-warning-950/30', border: 'border-warning-200 dark:border-warning-800', text: 'text-warning-900 dark:text-warning-100' }
                             }
                             if (errorText.includes('[Invalid Model Name]')) {
-                              return { icon: '🔍', bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-900', category: 'Invalid Model' }
+                              return { bg: 'bg-primary-50 dark:bg-primary-950/30', border: 'border-primary-200 dark:border-primary-800', text: 'text-primary-900 dark:text-primary-100' }
                             }
                             if (errorText.includes('[Model Unavailable]')) {
-                              return { icon: '🚫', bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', category: 'Unavailable' }
+                              return { bg: 'bg-error-50 dark:bg-error-950/30', border: 'border-error-200 dark:border-error-800', text: 'text-error-900 dark:text-error-100' }
                             }
                             if (errorText.includes('[Invalid Request]')) {
-                              return { icon: '❌', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900', category: 'Invalid Request' }
+                              return { bg: 'bg-error-50 dark:bg-error-950/30', border: 'border-error-200 dark:border-error-800', text: 'text-error-900 dark:text-error-100' }
                             }
                             if (errorText.includes('[Server Error]')) {
-                              return { icon: '🔧', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-900', category: 'Server Error' }
+                              return { bg: 'bg-error-50 dark:bg-error-950/30', border: 'border-error-200 dark:border-error-800', text: 'text-error-900 dark:text-error-100' }
                             }
                             if (errorText.includes('[Network Error]')) {
-                              return { icon: '🌐', bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-900', category: 'Network' }
+                              return { bg: 'bg-primary-50 dark:bg-primary-950/30', border: 'border-primary-200 dark:border-primary-800', text: 'text-primary-900 dark:text-primary-100' }
                             }
                             if (errorText.includes('[Model Not Found]')) {
-                              return { icon: '🔍', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900', category: 'Not Found' }
+                              return { bg: 'bg-primary-50 dark:bg-primary-950/30', border: 'border-primary-200 dark:border-primary-800', text: 'text-primary-900 dark:text-primary-100' }
                             }
-                            return { icon: '⚠️', bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-900', category: 'Unknown' }
+                            return { bg: 'bg-gray-50 dark:bg-gray-900', border: 'border-gray-200 dark:border-gray-700', text: 'text-gray-900 dark:text-gray-100' }
                           }
 
                           const style = getErrorStyle(error.error)
 
                           return (
                             <div key={idx} className={`p-4 ${style.bg} border ${style.border} rounded-lg`}>
-                              <div className="flex items-start gap-3">
-                                <span className="text-xl">{style.icon}</span>
-                                <div className="flex-1">
-                                  <p className={`font-medium ${style.text} text-sm`}>
-                                    {error.error.replace(/^\[.*?\]\s*/, '')}
-                                  </p>
-                                  <p className="text-xs text-gray-600 mt-2">
-                                    Occurred {error.count} time{error.count > 1 ? 's' : ''}
-                                    {error.documents && error.documents.length > 0 && (
-                                      <> in {error.documents.length} document{error.documents.length > 1 ? 's' : ''}</>
-                                    )}
-                                  </p>
-                                </div>
-                              </div>
+                              <p className={`font-medium ${style.text} text-sm`}>
+                                {error.error.replace(/^\[.*?\]\s*/, '')}
+                              </p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                                Occurred {error.count} time{error.count > 1 ? 's' : ''}
+                                {error.documents && error.documents.length > 0 && (
+                                  <> in {error.documents.length} document{error.documents.length > 1 ? 's' : ''}</>
+                                )}
+                              </p>
                             </div>
                           )
                         })}
@@ -643,7 +432,7 @@ function ModelAnalysisTab({
 }
 
 // ============================================================================
-// Tab 3: Per-Document Details
+// Per-Document Details
 // ============================================================================
 
 function DocumentDetailsTab({
@@ -663,10 +452,10 @@ function DocumentDetailsTab({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'all_passed': return 'bg-green-100 text-green-800 border-green-200'
-      case 'partial': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'all_failed': return 'bg-red-100 text-red-800 border-red-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'all_passed': return 'bg-success-100 dark:bg-success-950/30 text-success-800 dark:text-success-100 border-success-200 dark:border-success-800'
+      case 'partial': return 'bg-warning-100 dark:bg-warning-950/30 text-warning-800 dark:text-warning-100 border-warning-200 dark:border-warning-800'
+      case 'all_failed': return 'bg-error-100 dark:bg-error-950/30 text-error-800 dark:text-error-100 border-error-200 dark:border-error-800'
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700'
     }
   }
 
@@ -679,43 +468,43 @@ function DocumentDetailsTab({
           placeholder="Search documents..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         />
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-gray-600 dark:text-gray-400">
           {filteredDocs.length} document{filteredDocs.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {/* Documents Table */}
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Filename
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Models Passed
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Status
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {filteredDocs.map((doc) => (
-              <tr key={doc.documentId} className="hover:bg-gray-50">
+              <tr key={doc.documentId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                 <td className="px-6 py-4">
-                  <p className="text-sm font-medium text-gray-900">{doc.filename}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{doc.filename}</p>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {doc.modelsPassedCount} / {doc.modelsTotalCount}
                     </span>
-                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full"
+                        className="bg-primary-600 dark:bg-primary-500 h-2 rounded-full"
                         style={{
                           width: `${(doc.modelsPassedCount / doc.modelsTotalCount) * 100}%`
                         }}
@@ -725,9 +514,9 @@ function DocumentDetailsTab({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getStatusColor(doc.status)}`}>
-                    {doc.status === 'all_passed' && '✅ All Passed'}
-                    {doc.status === 'partial' && '⚠️ Partial'}
-                    {doc.status === 'all_failed' && '❌ All Failed'}
+                    {doc.status === 'all_passed' && 'All Passed'}
+                    {doc.status === 'partial' && 'Partial'}
+                    {doc.status === 'all_failed' && 'All Failed'}
                   </span>
                 </td>
               </tr>
@@ -740,7 +529,7 @@ function DocumentDetailsTab({
 }
 
 // ============================================================================
-// Tab 4: Attribute Failures
+// Attribute Failures
 // ============================================================================
 
 function AttributeFailuresTab({
@@ -752,10 +541,9 @@ function AttributeFailuresTab({
 }) {
   if (attributeFailures.length === 0) {
     return (
-      <div className="text-center py-12 bg-green-50 border border-green-200 rounded-lg">
-        <span className="text-4xl mb-4 block">✨</span>
-        <p className="text-lg font-semibold text-green-900">Perfect Extraction!</p>
-        <p className="text-sm text-green-700 mt-2">All models successfully validated all attributes.</p>
+      <div className="text-center py-12 bg-success-50 dark:bg-success-950/30 border border-success-200 dark:border-success-800 rounded-lg">
+        <p className="text-lg font-semibold text-success-900 dark:text-success-100">Perfect Extraction</p>
+        <p className="text-sm text-success-700 dark:text-success-300 mt-2">All models successfully validated all attributes.</p>
       </div>
     )
   }
@@ -763,12 +551,12 @@ function AttributeFailuresTab({
   return (
     <div className="space-y-6">
       {/* Overview */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-primary-50/50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
         <div className="flex items-start gap-2">
-          <InfoIcon tooltip="Attribute failure insights" className="text-blue-700 mt-0.5" />
+          <InfoIcon tooltip="Attribute failure insights" className="text-primary-700 dark:text-primary-300 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-blue-900">Attribute Failure Analysis</p>
-            <p className="text-xs text-blue-700 mt-1">
+            <p className="text-sm font-medium text-primary-900 dark:text-primary-100">Attribute Failure Analysis</p>
+            <p className="text-xs text-primary-700 dark:text-primary-300 mt-1">
               Identifies which schema attributes are most problematic across all models and documents.
               Use these insights to refine your prompts, schemas, or verify data exists in source documents.
             </p>
@@ -777,56 +565,56 @@ function AttributeFailuresTab({
       </div>
 
       {/* Failures Table */}
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Attribute Path
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 <div className="flex items-center gap-1">
                   Validation Level
-                  <InfoIcon tooltip="Which validation level this failure belongs to" className="text-gray-400" />
+                  <InfoIcon tooltip="Which validation level this failure belongs to" className="text-gray-400 dark:text-gray-500" />
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Missing
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Type Errors
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Format Errors
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Affected Models
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Pattern Insight
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {attributeFailures.map((failure) => {
               const totalFailures = failure.missingCount + failure.typeMismatchCount + failure.formatViolationCount
               const isUniversal = failure.affectedModels.length === totalModels
 
               // Determine primary validation level
               const getPrimaryLevel = () => {
-                if (failure.missingCount > 0) return { level: 'Level 2', label: 'Attributes', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
-                if (failure.typeMismatchCount > 0 || failure.formatViolationCount > 0) return { level: 'Level 3', label: 'Formats', color: 'bg-orange-100 text-orange-800 border-orange-200' }
-                return { level: 'Unknown', label: 'Unknown', color: 'bg-gray-100 text-gray-800 border-gray-200' }
+                if (failure.missingCount > 0) return { level: 'Level 2', label: 'Attributes', color: 'bg-warning-100 dark:bg-warning-950/30 text-warning-800 dark:text-warning-100 border-warning-200 dark:border-warning-800' }
+                if (failure.typeMismatchCount > 0 || failure.formatViolationCount > 0) return { level: 'Level 3', label: 'Formats', color: 'bg-error-100 dark:bg-error-950/30 text-error-800 dark:text-error-100 border-error-200 dark:border-error-800' }
+                return { level: 'Unknown', label: 'Unknown', color: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-200 dark:border-gray-700' }
               }
               const primaryLevel = getPrimaryLevel()
 
               return (
-                <tr key={failure.attributePath} className={isUniversal ? 'bg-red-50' : ''}>
+                <tr key={failure.attributePath} className={isUniversal ? 'bg-error-50 dark:bg-error-950/20' : ''}>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-mono font-medium text-gray-900">
+                    <p className="text-sm font-mono font-medium text-gray-900 dark:text-gray-100">
                       {failure.attributePath || '(root)'}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                       {totalFailures} total failure{totalFailures > 1 ? 's' : ''}
                     </p>
                   </td>
@@ -837,38 +625,38 @@ function AttributeFailuresTab({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {failure.missingCount > 0 ? (
-                      <span className="px-2 py-1 text-xs font-semibold bg-red-100 text-red-800 rounded">
+                      <span className="px-2 py-1 text-xs font-semibold bg-error-100 dark:bg-error-950/30 text-error-800 dark:text-error-100 rounded">
                         {failure.missingCount}
                       </span>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400 dark:text-gray-500">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {failure.typeMismatchCount > 0 ? (
-                      <span className="px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">
+                      <span className="px-2 py-1 text-xs font-semibold bg-warning-100 dark:bg-warning-950/30 text-warning-800 dark:text-warning-100 rounded">
                         {failure.typeMismatchCount}
                       </span>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400 dark:text-gray-500">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {failure.formatViolationCount > 0 ? (
-                      <span className="px-2 py-1 text-xs font-semibold bg-orange-100 text-orange-800 rounded">
+                      <span className="px-2 py-1 text-xs font-semibold bg-error-100 dark:bg-error-950/30 text-error-800 dark:text-error-100 rounded">
                         {failure.formatViolationCount}
                       </span>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400 dark:text-gray-500">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {failure.affectedModels.length} / {totalModels}
                     {isUniversal && (
-                      <span className="ml-2 text-xs font-semibold text-red-600">ALL</span>
+                      <span className="ml-2 text-xs font-semibold text-error-600 dark:text-error-400">ALL</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                     {failure.pattern || '-'}
                   </td>
                 </tr>
@@ -882,141 +670,7 @@ function AttributeFailuresTab({
 }
 
 // ============================================================================
-// Prompt Guidance Modal
-// ============================================================================
-
-function PromptGuidanceModal({
-  modelAnalytics,
-  onClose
-}: {
-  modelAnalytics: ModelAnalytics[]
-  onClose: () => void
-}) {
-  // Aggregate all guidance from all models with counts
-  const guidanceMap = new Map<string, { count: number; models: string[] }>()
-
-  for (const model of modelAnalytics) {
-    if (model.validationBreakdown?.commonGuidance) {
-      for (const guidance of model.validationBreakdown.commonGuidance) {
-        const existing = guidanceMap.get(guidance)
-        if (existing) {
-          existing.count++
-          if (!existing.models.includes(model.model)) {
-            existing.models.push(model.model)
-          }
-        } else {
-          guidanceMap.set(guidance, { count: 1, models: [model.model] })
-        }
-      }
-    }
-  }
-
-  const allGuidance = Array.from(guidanceMap.entries())
-    .map(([text, data]) => ({ text, ...data }))
-    .sort((a, b) => b.count - a.count)
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">💡</span>
-            <h2 className="text-xl font-bold text-gray-900">All Prompt Improvement Suggestions</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {allGuidance.length === 0 ? (
-            <div className="text-center py-12">
-              <span className="text-4xl mb-4 block">✨</span>
-              <p className="text-lg font-semibold text-gray-900">No Guidance Yet</p>
-              <p className="text-sm text-gray-600 mt-2">
-                Guidance suggestions will appear after processing batch jobs with validation failures.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-blue-900">
-                  <strong>Total Suggestions:</strong> {allGuidance.length} unique insights from {modelAnalytics.length} models
-                </p>
-              </div>
-
-              {allGuidance.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg shadow-sm"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-amber-600 font-bold text-xl mt-0.5">→</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-900">{item.text}</p>
-                      <div className="mt-2 flex items-center gap-4 text-xs text-amber-700">
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                            <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                          </svg>
-                          Occurred <strong>{item.count}</strong> time{item.count > 1 ? 's' : ''}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                          </svg>
-                          Affects <strong>{item.models.length}</strong> model{item.models.length > 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <div className="mt-2">
-                        <details className="text-xs">
-                          <summary className="cursor-pointer text-amber-600 hover:text-amber-700 font-medium">
-                            View affected models
-                          </summary>
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {item.models.map((model) => (
-                              <span
-                                key={model}
-                                className="px-2 py-1 bg-white border border-amber-200 rounded text-amber-800"
-                              >
-                                {model}
-                              </span>
-                            ))}
-                          </div>
-                        </details>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================================================
-// Tab 5: Detailed Results
+// Detailed Results
 // ============================================================================
 
 interface DetailedOutput {
@@ -1113,10 +767,9 @@ function DetailedResultsTab({
 
   if (!data || data.outputs.length === 0) {
     return (
-      <div className="text-center py-12">
-        <span className="text-4xl mb-4 block">📭</span>
-        <p className="text-lg font-semibold text-gray-900">No outputs found</p>
-        <p className="text-sm text-gray-600 mt-2">
+      <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-lg">
+        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">No outputs found</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           No detailed outputs are available for this batch job.
         </p>
       </div>
@@ -1159,18 +812,15 @@ function DetailedResultsTab({
   return (
     <div className="space-y-6">
       {/* Header Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xl">🔬</span>
-          <h3 className="text-lg font-semibold text-blue-900">Detailed Results</h3>
-        </div>
-        <p className="text-sm text-blue-800">
+      <div className="bg-primary-50/50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-primary-900 dark:text-primary-100 mb-2">Detailed Results</h3>
+        <p className="text-sm text-primary-800 dark:text-primary-200">
           Full transparency into each LLM response: prompts sent, raw responses, extracted JSON, and schema comparison.
         </p>
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Model</label>
           <select
