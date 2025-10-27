@@ -243,8 +243,11 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
           <button
             onClick={handleOptimizePrompt}
             disabled={!userInput.trim() || isOptimizing}
-            className="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-sm font-medium"
+            className="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
           >
+            {isOptimizing && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
             {isOptimizing ? 'Optimizing...' : 'Optimize Prompt with AI'}
           </button>
         </div>
@@ -268,40 +271,43 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
             <button
               onClick={handleGenerateSchema}
               disabled={isGeneratingSchema}
-              className="px-4 py-2 bg-success-600 dark:bg-success-500 text-white rounded-lg hover:bg-success-700 dark:hover:bg-success-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-sm font-medium"
+              className="px-4 py-2 bg-success-600 dark:bg-success-500 text-white rounded-lg hover:bg-success-700 dark:hover:bg-success-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
             >
+              {isGeneratingSchema && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              )}
               {isGeneratingSchema ? 'Generating...' : 'Generate JSON Schema'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 4: JSON Schema (appears after generation) */}
+      {/* Step 4: JSON Schema (appears after generation) - Collapsed by default */}
       {jsonSchema && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              4. JSON Schema for Validation (editable)
-            </label>
+        <details className="border border-gray-200 dark:border-gray-700 rounded-lg">
+          <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2">
+            4. JSON Schema for Validation (editable)
             <InfoIcon tooltip="This JSON Schema (draft-07) validates all model outputs. All responses must match this structure to pass validation. Edit carefully - invalid schemas will prevent execution." />
+          </summary>
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+            {!schemaValid && (
+              <div className="mb-2 p-3 bg-error-50 dark:bg-error-950/30 border border-error-200 dark:border-error-800 rounded-lg">
+                <p className="text-sm text-error-800 dark:text-error-100">
+                  {schemaError}. Please fix the JSON syntax.
+                </p>
+              </div>
+            )}
+            <textarea
+              value={jsonSchemaText}
+              onChange={(e) => handleSchemaEdit(e.target.value)}
+              className={`w-full h-64 p-3 border rounded-lg focus:ring-2 focus:border-transparent font-mono text-xs ${
+                schemaValid
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-success-500'
+                  : 'border-error-300 dark:border-error-700 bg-error-50 dark:bg-error-950/30 text-gray-900 dark:text-gray-100 focus:ring-error-500'
+              }`}
+            />
           </div>
-          {!schemaValid && (
-            <div className="mb-2 p-3 bg-error-50 dark:bg-error-950/30 border border-error-200 dark:border-error-800 rounded-lg">
-              <p className="text-sm text-error-800 dark:text-error-100">
-                {schemaError}. Please fix the JSON syntax.
-              </p>
-            </div>
-          )}
-          <textarea
-            value={jsonSchemaText}
-            onChange={(e) => handleSchemaEdit(e.target.value)}
-            className={`w-full h-64 p-3 border rounded-lg focus:ring-2 focus:border-transparent font-mono text-xs ${
-              schemaValid
-                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-success-500'
-                : 'border-error-300 dark:border-error-700 bg-error-50 dark:bg-error-950/30 text-gray-900 dark:text-gray-100 focus:ring-error-500'
-            }`}
-          />
-        </div>
+        </details>
       )}
 
       {/* Step 5: Final Prompt Preview (appears after both optimizedPrompt and jsonSchema exist) */}
@@ -351,36 +357,6 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
         </div>
       )}
 
-      {/* System Prompt Preview (read-only) */}
-      <details className="border border-gray-200 dark:border-gray-700 rounded-lg">
-        <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-          View System Prompt (auto-generated)
-        </summary>
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-          <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
-            {systemPrompt}
-          </pre>
-        </div>
-      </details>
-
-      {/* Configuration Status */}
-      <div className="p-4 bg-primary-50/50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-lg">
-        <h4 className="text-sm font-medium text-primary-900 dark:text-primary-100 mb-2">Configuration Status</h4>
-        <ul className="text-sm text-primary-700 dark:text-primary-300 space-y-1">
-          <li>Output format: <strong>{outputFormat.toUpperCase()}</strong></li>
-          <li>
-            {optimizedPrompt ? 'Optimized prompt: Ready' : 'Optimized prompt: Pending'}
-          </li>
-          <li>
-            {jsonSchema ? `JSON Schema: ${schemaValid ? 'Valid' : 'Invalid'}` : 'JSON Schema: Pending'}
-          </li>
-          <li className="mt-2 pt-2 border-t border-primary-300 dark:border-primary-800">
-            {optimizedPrompt && jsonSchema && schemaValid
-              ? 'Ready to run models'
-              : 'Complete all steps to continue'}
-          </li>
-        </ul>
-      </div>
     </div>
   )
 }

@@ -626,20 +626,25 @@ LLM-backend/
 
 **Deployment-Focused Configuration:** Models categorized by deployment type (On-Prem vs Cloud) and size. All models verified working on OpenRouter.
 
+**IMPORTANT - Model Name Convention:**
+- Database stores models with separate `provider` and `name` columns
+- Model names do NOT include provider prefix in the database
+- Code dynamically combines: `provider + '/' + name` for OpenRouter API calls
+- Example: DB has `provider='meta-llama'`, `name='llama-3.1-8b-instruct'` → API calls `meta-llama/llama-3.1-8b-instruct`
+- **Critical:** Never prefix model names with provider in the `models` table - this breaks the dynamic combination
+
 #### On-Premises Deployable Models
 
 Open-weight models that can be self-hosted. VRAM requirements shown for FP16, 8-bit, and 4-bit quantization.
 
 **Small (7-8B Parameters) - Entry-level models**
-- Meta Llama 3.1 8B Instruct - 16GB / 8GB / 4GB VRAM - Free
-- Mistral 7B Instruct - 14GB / 7GB / 3.5GB VRAM - Free
-- DeepSeek Chat V3 - 14GB / 7GB / 3.5GB VRAM - $0.14/1M tokens
+- Meta Llama 3.1 8B Instruct - 16GB / 8GB / 4GB VRAM - $0.06/1M tokens (paid)
+- Mistral 7B Instruct - 14GB / 7GB / 3.5GB VRAM - $0.06/1M tokens (paid)
 
 *Typical hardware: RTX 4090 (24GB), A5000 (24GB)*
 
 **Medium (30-49B Parameters) - Advanced models**
 - NVIDIA Llama 3.3 Nemotron Super 49B - 98GB / 49GB / 24.5GB VRAM - $0.10/1M tokens
-- Qwen QwQ 32B (Reasoning) - 64GB / 32GB / 16GB VRAM - $0.10/1M tokens
 
 *Typical hardware: A100 80GB, H100 80GB, or multi-GPU setups*
 
@@ -674,7 +679,7 @@ Proprietary models accessible via API. No hardware requirements - pay per use.
 - OpenAI o3 Mini (Reasoning) - $1.00/1M tokens
 - Mistral Large - $2.00/1M tokens
 
-**Note:** Free on-prem models (Llama 3.1 8B, Mistral 7B) are disabled by default but can be enabled for testing. Cost is relevant - free models may not handle production volume.
+**Note:** Small on-prem models use paid versions (not :free suffixed) for production reliability. Free versions are disabled. QwQ 32B is disabled due to OpenRouter 404 errors. Cost is relevant - while low for small models, free tiers cannot handle production volume.
 
 ### Test User
 - **Email:** `test@playwright.local`

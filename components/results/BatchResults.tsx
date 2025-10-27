@@ -58,7 +58,7 @@ interface BatchResultsProps {
   batchJobId: string
 }
 
-type TabType = 'models' | 'documents' | 'attributes' | 'detailed'
+type TabType = 'models' | 'detailed'
 
 // Helper function to render progress bar with color
 function ValidationProgressBar({ percentage }: { percentage?: number }) {
@@ -94,8 +94,6 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
 
   const tabs: Array<{ id: TabType; label: string }> = [
     { id: 'models', label: 'Per-Model Analysis' },
-    { id: 'documents', label: 'Per-Document Details' },
-    { id: 'attributes', label: 'Attribute Failures' },
     { id: 'detailed', label: 'Detailed Results' }
   ]
 
@@ -139,19 +137,6 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
             modelAnalytics={analytics.modelAnalytics}
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
-          />
-        )}
-        {activeTab === 'documents' && (
-          <DocumentDetailsTab
-            documentResults={analytics.documentResults}
-            selectedDocument={selectedDocument}
-            onSelectDocument={setSelectedDocument}
-          />
-        )}
-        {activeTab === 'attributes' && (
-          <AttributeFailuresTab
-            attributeFailures={analytics.attributeFailures}
-            totalModels={analytics.modelAnalytics.length}
           />
         )}
         {activeTab === 'detailed' && (
