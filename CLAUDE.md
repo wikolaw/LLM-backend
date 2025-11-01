@@ -1,17 +1,18 @@
 # 🤖 Claude AI Assistant - Project Context
 
-**Last Updated:** 2025-10-25 19:45 UTC
+**Last Updated:** 2025-10-28 21:30 UTC
 **Project:** Universal Document Extraction with Batch Processing & Comprehensive Analytics
-**Status:** ✅ v3.2 **FULLY OPERATIONAL** (3-Level Validation System + Prompt Guidance)
+**Status:** ✅ v3.3 **FULLY OPERATIONAL** (Null Value Tracking & Highlighting)
 **GitHub:** https://github.com/wikolaw/LLM-backend
 
 ---
 
 ## 📋 Quick Context
 
-This project performs **batch processing** of multiple documents (in ANY language/domain), extracting structured data using multiple LLMs with **AI-powered JSON Schema validation** and providing **comprehensive analytics** showing success rates, attribute-level failure tracking, and cross-model performance insights.
+This project performs **batch processing** of multiple documents (in ANY language/domain), extracting structured data using multiple LLMs with **AI-powered JSON Schema validation** and providing **comprehensive analytics** showing success rates, attribute-level failure tracking, null value analysis, and cross-model performance insights.
 
 **Key Innovations:**
+- **v3.3:** ⚠️ **NULL VALUE TRACKING & HIGHLIGHTING** - Counts null values in LLM responses, displays ⚠️ yellow badges showing "X.X nulls/doc" in model comparison, highlights null values in yellow in JSON output. Helps users identify when models return incomplete data and which models perform better at complete extraction.
 - **v3.2:** 🎯 **3-LEVEL VALIDATION SYSTEM** - Breaks validation failures into JSON/Attributes/Formats levels with AI-generated prompt improvement guidance. Shows exactly what failed and how to fix it.
 - **v3.1:** Universal flexible prompt optimizer that generates comprehensive 400-800 word extraction prompts for ANY document type, language, or domain (not hardcoded for Swedish). Combined with batch processing (1-N documents), async model execution, and detailed analytics showing which attributes fail and why.
 - **v3.1.1:** 100% realistic testing philosophy - ZERO mocks in E2E/API tests. Real Supabase Storage, real DOCX extraction via mammoth, real LLM calls. Tests mirror production exactly.
@@ -202,6 +203,124 @@ validation_breakdown JSONB            -- Aggregated validation details
 - Database migration applied
 - Edge Function updated and deployed
 - System operational and accepting requests
+
+---
+
+## ⚠️ Null Value Tracking & Highlighting (v3.3 - 2025-10-28)
+
+**Enhancement:** Track and highlight null values in LLM responses to help users identify incomplete extractions and underperforming models.
+
+**Problem:** When LLMs return `null` for fields, responses pass validation but provide no useful data. Users need visibility into which models return more complete data vs which leave many fields as null.
+
+**Solution:** Count null values in JSON responses, display counts in model comparison, and visually highlight nulls in JSON output.
+
+### Features
+
+#### 1. Null Value Counting
+**What:** Recursively counts all `null` values in JSON responses
+
+**Implementation:** `supabase/functions/_shared/null-counter.ts`
+```typescript
+export function countNullValues(obj: any): number {
+  // Recursively traverses JSON and counts nulls
+  // Example: { name: "Test", value: null, nested: { field: null } } → Returns: 2
+}
+```
+
+#### 2. Model Comparison Display
+**Where:** Model comparison table in BatchResults UI
+
+**Visual:**
+```
+Model                           Success Rate  Null Values         Avg Time
+────────────────────────────────────────────────────────────────────────────
+google/gemini-2.0-flash-exp     100%         ⚠️ 2.3 nulls/doc   1200ms
+openai/gpt-4o-mini              100%         ⚠️ 4.1 nulls/doc   1500ms
+meta-llama/llama-3.1-8b         90%          ⚠️ 8.5 nulls/doc   1800ms
+```
+
+**Features:**
+- ⚠️ Yellow warning icon when avgNullCount > 0
+- Displays average nulls per document (e.g., "2.3 nulls/doc")
+- Gray "0" when no nulls
+- Tooltip explains: "Average number of null values per document"
+
+#### 3. JSON Null Highlighting
+**Where:** Detailed Results → Click output row → Extracted JSON view
+
+**Visual:** Null values get yellow background styling
+```json
+{
+  "contract_name": "Arlandabanan Contract",
+  "supplier_name": null  ← YELLOW BACKGROUND (bg-yellow-200)
+  "amount": 5000000
+}
+```
+
+**Implementation:** Helper function in BatchResults.tsx:
+```typescript
+function highlightNulls(jsonObj: any): string {
+  const jsonString = JSON.stringify(jsonObj, null, 2)
+  return jsonString.replace(/: null(,?)$/gm, (match, comma) => {
+    return `: <span class="bg-yellow-200 text-yellow-800 font-bold px-1 rounded">null</span>${comma}`
+  })
+}
+```
+
+### Database Schema
+
+**New fields in `outputs` table:**
+```sql
+null_count INT DEFAULT 0  -- Total number of null values in JSON
+```
+
+**New fields in `batch_analytics` table:**
+```sql
+avg_null_count NUMERIC(10,2)  -- Average nulls per document for this model
+```
+
+**Migration:** `supabase/migrations/20251028000000_add_null_counting.sql`
+
+### Implementation Files
+
+**Created:**
+- `supabase/functions/_shared/null-counter.ts` - Null counting utility
+- `supabase/migrations/20251028000000_add_null_counting.sql` - Database schema
+- `NULL-COUNTING-TEST-PLAN.md` - Comprehensive testing guide
+
+**Modified:**
+- `supabase/functions/batch-processor/index.ts` - Stores null_count per output
+- `supabase/functions/_shared/analytics-generator.ts` - Calculates avgNullCount per model
+- `components/results/BatchResults.tsx` - Displays null counts + highlights nulls
+- `supabase/functions/_shared/enhanced-validator.ts` - Fixed imports (.ts extensions)
+
+### Use Cases
+
+**1. Model Performance Comparison**
+- Compare which models return more complete data
+- Example: GPT-4o has 2.5 nulls/doc, Llama-8b has 8.5 nulls/doc → GPT-4o extracts more complete data
+
+**2. Prompt Optimization**
+- High null counts indicate vague prompts
+- User sees ⚠️ 12.3 nulls/doc → Realizes prompt needs more specificity
+
+**3. Data Quality Assessment**
+- Identify which fields are consistently null across models
+- Universal nulls (all models return null) → Field may not exist in documents
+
+**4. Cost Optimization**
+- Avoid expensive models that return mostly nulls
+- Choose model with best null rate for budget
+
+### Deployment Status
+
+✅ **FULLY DEPLOYED** on 2025-10-28 21:00 UTC
+- Database migration applied
+- Edge Function deployed with null counting
+- UI updated with null display and highlighting
+- System operational and ready for testing
+
+**Test Plan:** See `NULL-COUNTING-TEST-PLAN.md` for comprehensive testing scenarios
 
 ---
 
@@ -552,21 +671,23 @@ LLM-backend/
 
 ## 🔑 Key Changes Across Versions
 
-| Feature | v1.0 | v2.0 | v3.0 | v3.1 | v3.1.2 |
-|---------|------|------|------|------|--------|
-| **Documents per run** | 1 | 1 | 1-N (batch) | 1-N (batch) | 1-N (batch) |
-| **Prompt optimizer** | None | Generic (2-4 para) | Generic (2-4 para) | **Universal (400-800 words)** | **Universal (400-800 words)** |
-| **Language support** | Swedish only | Swedish focus | Swedish focus | **ANY language** | **ANY language** |
-| **Domain support** | Contracts only | Any domain | Any domain | **ANY domain (optimized)** | **ANY domain (optimized)** |
-| **Prompt length** | N/A | ~200 words | ~200 words | **400-800 words** | **400-800 words** |
-| **Validation** | Quality scores | JSON Schema | JSON Schema | JSON Schema | JSON Schema |
-| **Processing** | Synchronous | Synchronous | Asynchronous | Asynchronous | Asynchronous |
-| **Progress updates** | None | Spinner | Real-time polling | Real-time polling | Real-time polling |
-| **Results** | Basic comparison | Validation status | 3-tab analytics | 3-tab analytics | 3-tab analytics |
-| **Failure analysis** | None | Basic errors | Attribute tracking | Attribute tracking | Attribute tracking |
-| **Insights** | None | None | Pattern detection | Pattern detection | Pattern detection |
-| **LLM Extraction** | Working | Working | Working | **BROKEN (0%)** | **✅ FIXED (100%)** |
-| **Edge Function** | N/A | N/A | Invalid API params | Invalid API params | **Fixed API call** |
+| Feature | v1.0 | v2.0 | v3.0 | v3.1 | v3.1.2 | v3.3 |
+|---------|------|------|------|------|--------|------|
+| **Documents per run** | 1 | 1 | 1-N (batch) | 1-N (batch) | 1-N (batch) | 1-N (batch) |
+| **Prompt optimizer** | None | Generic (2-4 para) | Generic (2-4 para) | **Universal (400-800 words)** | **Universal (400-800 words)** | **Universal (400-800 words)** |
+| **Language support** | Swedish only | Swedish focus | Swedish focus | **ANY language** | **ANY language** | **ANY language** |
+| **Domain support** | Contracts only | Any domain | Any domain | **ANY domain (optimized)** | **ANY domain (optimized)** | **ANY domain (optimized)** |
+| **Prompt length** | N/A | ~200 words | ~200 words | **400-800 words** | **400-800 words** | **400-800 words** |
+| **Validation** | Quality scores | JSON Schema | JSON Schema | JSON Schema | JSON Schema | JSON Schema + 3-Level |
+| **Processing** | Synchronous | Synchronous | Asynchronous | Asynchronous | Asynchronous | Asynchronous |
+| **Progress updates** | None | Spinner | Real-time polling | Real-time polling | Real-time polling | Real-time polling |
+| **Results** | Basic comparison | Validation status | 3-tab analytics | 3-tab analytics | 3-tab analytics | 3-tab analytics |
+| **Failure analysis** | None | Basic errors | Attribute tracking | Attribute tracking | Attribute tracking | Attribute tracking |
+| **Insights** | None | None | Pattern detection | Pattern detection | Pattern detection | Pattern detection |
+| **Null tracking** | None | None | None | None | None | **⚠️ Full tracking** |
+| **Null highlighting** | None | None | None | None | None | **Yellow in JSON** |
+| **LLM Extraction** | Working | Working | Working | **BROKEN (0%)** | **✅ FIXED (100%)** | **✅ WORKING (100%)** |
+| **Edge Function** | N/A | N/A | Invalid API params | Invalid API params | **Fixed API call** | **Fixed API call** |
 
 ---
 
@@ -1060,11 +1181,71 @@ npx playwright test batch-processing.spec.ts --headed
 
 ---
 
+## 🎨 Styling Standard (Nordic Minimalistic)
+
+**Reference Page:** `/dashboard` (app/dashboard/page.tsx)
+**Documentation:** `STYLING-GUIDE.md`
+**Last Updated:** 2025-10-29
+
+### Design Philosophy
+
+The application follows a **Nordic minimalistic** design aesthetic characterized by:
+
+- **Muted Color Palette**: Desaturated Nordic blue primary color (#627d98), not bright colors
+- **Complete Dark Mode**: Every colored element has a `dark:` variant
+- **Subtle Shadows**: Use `shadow-sm` for depth, not heavy shadows
+- **Consistent Spacing**: Tailwind scale (px-4, py-8, p-6)
+- **Professional Typography**: Inter font with clear hierarchy
+
+### Key Standards
+
+**Colors:**
+- **Primary**: `primary-600` (Nordic blue #627d98) for buttons, links, focus states
+- **Status**: `success-600`, `warning-600`, `error-600` (muted, professional)
+- **Neutrals**: `gray-*` for backgrounds, borders, text
+- **Never use**: Hardcoded `blue-*`, `red-*`, `green-*` outside the system
+
+**Components:**
+- **Cards**: `bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6`
+- **Buttons**: `bg-primary-600 dark:bg-primary-500 hover:bg-primary-700 dark:hover:bg-primary-600`
+- **Borders**: `border-gray-200 dark:border-gray-700`
+- **Focus**: `focus:ring-2 focus:ring-primary-500`
+
+**Typography:**
+- **H1**: `text-2xl font-bold text-gray-900 dark:text-gray-100`
+- **H2**: `text-xl font-semibold text-gray-900 dark:text-gray-100`
+- **Body**: `text-gray-700 dark:text-gray-300`
+- **Labels**: `text-sm font-medium text-gray-700 dark:text-gray-300`
+
+**Layout:**
+- **Container**: `max-w-7xl mx-auto px-4 py-8`
+- **Page Background**: `bg-gray-50 dark:bg-gray-900`
+- **Sticky Header**: `bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10`
+
+### Implementation Rules
+
+✅ **Always:**
+- Use the primary color system (`primary-*`) for all interactive elements
+- Add complete dark mode support (`dark:`) to every colored element
+- Reference STYLING-GUIDE.md for patterns and examples
+- Match dashboard's visual consistency
+
+❌ **Never:**
+- Use hardcoded color values like `blue-600`, `red-500`
+- Forget dark mode variants
+- Use heavy shadows (`shadow-xl`) on standard cards
+- Mix different color systems
+
+**See STYLING-GUIDE.md for comprehensive documentation, code examples, and migration checklist.**
+
+---
+
 ## 📚 Documentation Files
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | **This file** - AI assistant context (v3.0) |
+| `CLAUDE.md` | **This file** - AI assistant context (v3.3) |
+| `STYLING-GUIDE.md` | **Nordic minimalistic styling standard** - Color palette, typography, component patterns, dark mode |
 | `README.md` | User-facing project overview |
 | `.claude/PROJECT-CONTEXT.md` | Technical implementation details |
 | `JSON-SCHEMA-VALIDATION.md` | v2.0 validation system docs |
@@ -1171,15 +1352,17 @@ When continuing work:
 
 ## 📞 Context Summary
 
-**What is this?** Universal document processing for ANY language/domain with batch support, multi-model LLM comparison, and comprehensive failure analytics.
+**What is this?** Universal document processing for ANY language/domain with batch support, multi-model LLM comparison, comprehensive failure analytics, and null value tracking.
 
-**What's new in v3.1.2? (LATEST)** 🔧 **CRITICAL BUG FIXED** - Edge Function OpenRouter API call corrected (removed invalid `response_format.schema` parameter). **System now fully operational end-to-end.** All infrastructure validated and ready for production use.
+**What's new in v3.3? (LATEST)** ⚠️ **NULL VALUE TRACKING** - Counts and highlights null values in LLM responses. Shows ⚠️ yellow badges with "X.X nulls/doc" in model comparison. Highlights null values in yellow in JSON output. Helps users identify incomplete extractions and choose models that return more complete data.
+
+**What's new in v3.1.2?** 🔧 **CRITICAL BUG FIXED** - Edge Function OpenRouter API call corrected (removed invalid `response_format.schema` parameter). **System now fully operational end-to-end.** All infrastructure validated and ready for production use.
 
 **What's new in v3.1?** Universal flexible prompt optimizer that generates comprehensive 400-800 word prompts for ANY document type (not just Swedish contracts). Works dynamically for contracts, invoices, resumes, medical records, etc. in any language.
 
 **What's new in v3.0?** Multi-document batch processing (1-N docs), async processing, real-time progress, 3-tab analytics, attribute-level failure tracking, pattern detection.
 
-**What works?** ✅ **EVERYTHING** - Upload multiple docs in ANY language, AI prompt optimization (400-800 words, domain-agnostic), AI schema generation, **LLM extraction via OpenRouter**, JSON schema validation, async batch processing, real-time polling, comprehensive analytics with insights.
+**What works?** ✅ **EVERYTHING** - Upload multiple docs in ANY language, AI prompt optimization (400-800 words, domain-agnostic), AI schema generation, **LLM extraction via OpenRouter**, JSON schema validation, async batch processing, real-time polling, comprehensive analytics with insights, **null value tracking and highlighting**.
 
 **System Status:** ✅ **FULLY OPERATIONAL** - Ready for production testing via UI (localhost:3001) or automated E2E tests.
 
@@ -1187,4 +1370,4 @@ When continuing work:
 
 ---
 
-**End of Claude Context Document (v3.1.2 - Bug Fix Edition - FULLY OPERATIONAL)**
+**End of Claude Context Document (v3.3 - Null Value Tracking Edition - FULLY OPERATIONAL)**

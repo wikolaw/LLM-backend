@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DocumentUpload } from '@/components/upload/DocumentUpload'
 import { PromptEditor } from '@/components/prompt/PromptEditor'
 import { ModelSelector } from '@/components/results/ModelSelector'
@@ -63,12 +63,23 @@ interface BatchAnalytics {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  // Cloning state
+  const [isLoadingClone, setIsLoadingClone] = useState(false)
+  const [cloneError, setCloneError] = useState<string | null>(null)
+  const [clonedDocuments, setClonedDocuments] = useState<Array<{
+    id: string
+    filename: string
+    char_count: number
+  }>>([])
+  const [clonedModels, setClonedModels] = useState<Model[]>([])
 
   // Step tracking
   const [currentStep, setCurrentStep] = useState(1)
@@ -80,6 +91,7 @@ export default function DashboardPage() {
 
   // Prompt state
   const [batchName, setBatchName] = useState('')
+  const [originalUserInput, setOriginalUserInput] = useState('')
   const [systemPrompt, setSystemPrompt] = useState('')
   const [userPrompt, setUserPrompt] = useState('')
   const [outputFormat, setOutputFormat] = useState<'json' | 'jsonl'>('json')
@@ -122,6 +134,82 @@ export default function DashboardPage() {
 
     checkAuth()
   }, [router, supabase.auth])
+
+  // Load cloned batch configuration if cloneFrom parameter is present
+  useEffect(() => {
+    const loadClonedBatch = async () => {
+      const cloneFromId = searchParams.get('cloneFrom')
+      if (!cloneFromId || !isAuthenticated) return
+
+      setIsLoadingClone(true)
+      setCloneError(null)
+
+      try {
+        // Fetch batch configuration
+        const response = await fetch(`/api/batches/${cloneFromId}/config`)
+        if (!response.ok) {
+          throw new Error('Failed to load batch configuration')
+        }
+
+        const config = await response.json()
+
+        console.log('📦 Received config:', {
+          name: config.name,
+          documentsCount: config.documents?.length || 0,
+          modelsCount: config.modelsUsed?.length || 0,
+          hasSystemPrompt: !!config.systemPrompt,
+          hasUserPrompt: !!config.userPrompt,
+          hasValidationSchema: !!config.validationSchema,
+        })
+
+        // Pre-fill state with cloned configuration
+        setDocumentIds(config.documents.map((d: any) => d.id))
+        setDocumentCount(config.documents.length)
+        setBatchName(`${config.name} (Copy)`)
+        setOriginalUserInput(config.originalUserInput || '')
+        setSystemPrompt(config.systemPrompt)
+        setUserPrompt(config.userPrompt)
+        setOutputFormat(config.outputFormat)
+        setValidationSchema(config.validationSchema)
+
+        // Store documents for DocumentUpload component
+        setClonedDocuments(config.documents.map((d: any) => ({
+          id: d.id,
+          filename: d.filename,
+          char_count: d.char_count || d.full_text?.length || 0
+        })))
+
+        // Calculate total char count
+        const totalChars = config.documents.reduce(
+          (sum: number, doc: any) => sum + (doc.char_count || doc.full_text?.length || 0),
+          0
+        )
+        setTotalCharCount(totalChars)
+
+        // Fetch and set models
+        const { data: allModels } = await supabase.from('models').select('*')
+        if (allModels) {
+          const models = allModels.filter((model) =>
+            config.modelsUsed.includes(`${model.provider}/${model.name}`)
+          )
+          setSelectedModels(models)
+          setClonedModels(models) // Store for ModelSelector component
+        }
+
+        // Move to step 2 (configure extraction) so user can review configuration
+        setCurrentStep(2)
+      } catch (error) {
+        console.error('Error loading cloned batch:', error)
+        setCloneError(
+          error instanceof Error ? error.message : 'Failed to load batch'
+        )
+      } finally {
+        setIsLoadingClone(false)
+      }
+    }
+
+    loadClonedBatch()
+  }, [searchParams, isAuthenticated, supabase])
 
   // Poll for batch status while processing
   useEffect(() => {
@@ -175,20 +263,24 @@ export default function DashboardPage() {
       setTotalCharCount(totalChars)
     }
 
-    // Auto-generate batch name
-    const timestamp = new Date().toLocaleString()
-    setBatchName(`Batch (${docIds.length} docs) - ${timestamp}`)
+    // Auto-generate batch name only if not cloning (batch name not already set)
+    if (!batchName) {
+      const timestamp = new Date().toLocaleString()
+      setBatchName(`Batch (${docIds.length} docs) - ${timestamp}`)
+    }
 
     setCurrentStep(2)
   }
 
   const handleConfigChange = (config: {
     outputFormat: 'json' | 'jsonl'
+    originalUserInput: string
     systemPrompt: string
     userPrompt: string
     validationSchema: object
   }) => {
     setOutputFormat(config.outputFormat)
+    setOriginalUserInput(config.originalUserInput)
     setSystemPrompt(config.systemPrompt)
     setUserPrompt(config.userPrompt)
     setValidationSchema(config.validationSchema)
@@ -214,6 +306,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           documentIds,
           name: batchName,
+          originalUserInput,
           systemPrompt,
           userPrompt,
           outputFormat,
@@ -298,6 +391,18 @@ export default function DashboardPage() {
     return null
   }
 
+  // Show loading while cloning batch
+  if (isLoadingClone) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading batch configuration...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -308,12 +413,20 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">LLM Document Analysis v3.0</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">Batch Processing with Comprehensive Analytics{userEmail && ` • ${userEmail}`}</p>
             </div>
-            <a
-              href="/"
-              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
-            >
-              ← Back to Home
-            </a>
+            <div className="flex items-center gap-4">
+              <a
+                href="/batches"
+                className="px-4 py-2 text-sm border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium"
+              >
+                View Batch History
+              </a>
+              <a
+                href="/"
+                className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+              >
+                ← Back to Home
+              </a>
+            </div>
           </div>
 
           {/* Progress Steps */}
@@ -360,6 +473,48 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Clone Error Banner */}
+        {cloneError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Failed to load batch configuration</p>
+                <p className="text-sm text-red-700 mt-1">{cloneError}</p>
+              </div>
+              <button
+                onClick={() => setCloneError(null)}
+                className="flex-shrink-0 text-red-600 hover:text-red-800"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cloning Info Banner */}
+        {searchParams.get('cloneFrom') && !cloneError && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-800">Cloning batch configuration</p>
+                <p className="text-sm text-blue-700 mt-1">You can modify any settings before running. A new batch will be created when you click "Start Batch Processing".</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-8">
           {/* Step 1: Upload Documents */}
           <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
@@ -375,7 +530,10 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            <DocumentUpload onUploadComplete={handleDocumentUpload} />
+            <DocumentUpload
+              onUploadComplete={handleDocumentUpload}
+              initialDocuments={clonedDocuments.length > 0 ? clonedDocuments : undefined}
+            />
           </section>
 
           {/* Step 2: Configure Prompts */}
@@ -398,7 +556,13 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <PromptEditor onConfigChange={handleConfigChange} />
+              <PromptEditor
+                onConfigChange={handleConfigChange}
+                initialOutputFormat={outputFormat || undefined}
+                initialOriginalInput={originalUserInput || undefined}
+                initialOptimizedPrompt={userPrompt || undefined}
+                initialSchema={validationSchema || undefined}
+              />
 
               <div className="mt-6 flex justify-end">
                 <button
@@ -425,6 +589,7 @@ export default function DashboardPage() {
               <ModelSelector
                 onSelectionChange={handleModelsChange}
                 estimatedTokens={Math.ceil((systemPrompt.length + userPrompt.length) / 3.5) * documentCount}
+                initialSelectedModels={clonedModels.length > 0 ? clonedModels : undefined}
               />
 
               {/* Batch Summary */}

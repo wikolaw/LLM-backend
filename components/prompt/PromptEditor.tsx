@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getSystemPrompt, FORMAT_RECOMMENDATIONS, type OutputFormat } from '@/lib/schemas/extraction'
 import { isValidJSONSchema } from '@/lib/validation/schema-validator'
 import { InfoIcon } from '@/components/ui/InfoIcon'
@@ -8,13 +8,24 @@ import { InfoIcon } from '@/components/ui/InfoIcon'
 interface PromptEditorProps {
   onConfigChange: (config: {
     outputFormat: OutputFormat
+    originalUserInput: string
     systemPrompt: string
     userPrompt: string
     validationSchema: object
   }) => void
+  initialOutputFormat?: OutputFormat
+  initialOriginalInput?: string
+  initialOptimizedPrompt?: string
+  initialSchema?: object
 }
 
-export function PromptEditor({ onConfigChange }: PromptEditorProps) {
+export function PromptEditor({
+  onConfigChange,
+  initialOutputFormat,
+  initialOriginalInput,
+  initialOptimizedPrompt,
+  initialSchema
+}: PromptEditorProps) {
   // Step 1: Format selection
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('json')
 
@@ -35,12 +46,52 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
   const systemPrompt = getSystemPrompt(outputFormat)
   const formatRec = FORMAT_RECOMMENDATIONS[outputFormat]
 
+  // Load initial values for cloned batches
+  useEffect(() => {
+    if (initialOptimizedPrompt && initialSchema) {
+      console.log('📋 PromptEditor: Loading cloned configuration')
+
+      // Set output format
+      if (initialOutputFormat) {
+        setOutputFormat(initialOutputFormat)
+      }
+
+      // Set original user input (short description)
+      if (initialOriginalInput) {
+        setUserInput(initialOriginalInput)
+        console.log('📝 PromptEditor: Pre-filled user input field')
+      }
+
+      // Set optimized prompt
+      setOptimizedPrompt(initialOptimizedPrompt)
+
+      // Set JSON schema
+      setJsonSchema(initialSchema)
+      setJsonSchemaText(JSON.stringify(initialSchema, null, 2))
+      setSchemaValid(true)
+      setSchemaError('')
+
+      // Immediately notify parent that config is ready
+      onConfigChange({
+        outputFormat: initialOutputFormat || 'json',
+        originalUserInput: initialOriginalInput || '',
+        systemPrompt: getSystemPrompt(initialOutputFormat || 'json'),
+        userPrompt: initialOptimizedPrompt,
+        validationSchema: initialSchema
+      })
+
+      console.log('✅ PromptEditor: Cloned configuration loaded')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOutputFormat, initialOriginalInput, initialOptimizedPrompt, initialSchema])
+
   const handleFormatChange = (format: OutputFormat) => {
     setOutputFormat(format)
     // Notify parent if we have complete config
     if (optimizedPrompt && jsonSchema) {
       onConfigChange({
         outputFormat: format,
+        originalUserInput: userInput,
         systemPrompt: getSystemPrompt(format),
         userPrompt: optimizedPrompt,
         validationSchema: jsonSchema
@@ -108,6 +159,7 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
       // Notify parent - config is now complete
       onConfigChange({
         outputFormat,
+        originalUserInput: userInput,
         systemPrompt,
         userPrompt: optimizedPrompt,
         validationSchema: schema
@@ -134,6 +186,7 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
         // Update parent
         onConfigChange({
           outputFormat,
+          originalUserInput: userInput,
           systemPrompt,
           userPrompt: optimizedPrompt,
           validationSchema: parsed
@@ -155,6 +208,7 @@ export function PromptEditor({ onConfigChange }: PromptEditorProps) {
     if (jsonSchema) {
       onConfigChange({
         outputFormat,
+        originalUserInput: userInput,
         systemPrompt,
         userPrompt: text,
         validationSchema: jsonSchema

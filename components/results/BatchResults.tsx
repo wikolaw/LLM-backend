@@ -27,6 +27,8 @@ interface ModelAnalytics {
     formatsValid?: number
     commonGuidance?: string[]
   }
+  avgNullCount?: number
+  totalNullCount?: number
 }
 
 interface DocumentResult {
@@ -87,13 +89,23 @@ function ValidationProgressBar({ percentage }: { percentage?: number }) {
   )
 }
 
+// Helper function to highlight null values in JSON
+function highlightNulls(jsonObj: any): string {
+  const jsonString = JSON.stringify(jsonObj, null, 2)
+  // Replace null values with highlighted version
+  // Match `: null` (with optional comma) and wrap in span
+  return jsonString.replace(/: null(,?)$/gm, (match, comma) => {
+    return `: <span class="bg-yellow-200 text-yellow-800 font-bold px-1 rounded">null</span>${comma}`
+  })
+}
+
 export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResultsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('models')
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null)
 
   const tabs: Array<{ id: TabType; label: string }> = [
-    { id: 'models', label: 'Per-Model Analysis' },
+    { id: 'models', label: 'Model Overview' },
     { id: 'detailed', label: 'Detailed Results' }
   ]
 
@@ -151,7 +163,7 @@ export function BatchResults({ analytics, batchJobName, batchJobId }: BatchResul
 }
 
 // ============================================================================
-// Per-Model Analysis
+// Model Overview
 // ============================================================================
 
 function ModelAnalysisTab({
@@ -171,35 +183,49 @@ function ModelAnalysisTab({
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Model
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                Success Rate
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Success
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                <div className="flex items-center gap-1">
-                  JSON Valid
-                  <InfoIcon tooltip="Level 1: Percentage of runs with valid JSON syntax" className="text-gray-400 dark:text-gray-500" />
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex flex-col gap-0.5">
+                  <span>JSON Valid</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-500 normal-case font-normal">
+                    (Level 1)
+                  </span>
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                <div className="flex items-center gap-1">
-                  Attributes
-                  <InfoIcon tooltip="Level 2: Percentage with correct field names" className="text-gray-400 dark:text-gray-500" />
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex flex-col gap-0.5">
+                  <span>Attrs Valid</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-500 normal-case font-normal">
+                    (Level 2)
+                  </span>
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                <div className="flex items-center gap-1">
-                  Formats
-                  <InfoIcon tooltip="Level 3: Percentage with correct value formats" className="text-gray-400 dark:text-gray-500" />
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex flex-col gap-0.5">
+                  <span>Formats Valid</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-500 normal-case font-normal">
+                    (Level 3)
+                  </span>
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                Avg Time
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex flex-col gap-0.5">
+                  <span>Null Values</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-500 normal-case font-normal">
+                    (Avg/Doc)
+                  </span>
+                </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                Total Cost
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Time
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                Cost
               </th>
             </tr>
           </thead>
@@ -212,18 +238,18 @@ function ModelAnalysisTab({
                 }`}
                 onClick={() => onSelectModel(model.model === selectedModel ? null : model.model)}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{model.model}</div>
                   <div className="text-xs text-gray-600 dark:text-gray-400">
                     {model.successCount + model.failureCount} runs
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {Math.round(model.successRate * 100)}%
                     </span>
-                    <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full ${
                           model.successRate >= 0.8
@@ -240,19 +266,61 @@ function ModelAnalysisTab({
                     {model.successCount} / {model.successCount + model.failureCount}
                   </div>
                 </td>
-                <td className="px-4 py-4">
-                  <ValidationProgressBar percentage={model.jsonValidityRate} />
+                <td className="px-3 py-4 whitespace-nowrap">
+                  {model.jsonValidityRate !== undefined ? (
+                    <span className={`text-sm font-semibold ${
+                      model.jsonValidityRate >= 80 ? 'text-success-600 dark:text-success-500' :
+                      model.jsonValidityRate >= 50 ? 'text-warning-600 dark:text-warning-500' :
+                      'text-error-600 dark:text-error-500'
+                    }`}>
+                      {Math.round(model.jsonValidityRate)}%
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">N/A</span>
+                  )}
                 </td>
-                <td className="px-4 py-4">
-                  <ValidationProgressBar percentage={model.attributeValidityRate} />
+                <td className="px-3 py-4 whitespace-nowrap">
+                  {model.attributeValidityRate !== undefined ? (
+                    <span className={`text-sm font-semibold ${
+                      model.attributeValidityRate >= 80 ? 'text-success-600 dark:text-success-500' :
+                      model.attributeValidityRate >= 50 ? 'text-warning-600 dark:text-warning-500' :
+                      'text-error-600 dark:text-error-500'
+                    }`}>
+                      {Math.round(model.attributeValidityRate)}%
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">N/A</span>
+                  )}
                 </td>
-                <td className="px-4 py-4">
-                  <ValidationProgressBar percentage={model.formatValidityRate} />
+                <td className="px-3 py-4 whitespace-nowrap">
+                  {model.formatValidityRate !== undefined ? (
+                    <span className={`text-sm font-semibold ${
+                      model.formatValidityRate >= 80 ? 'text-success-600 dark:text-success-500' :
+                      model.formatValidityRate >= 50 ? 'text-warning-600 dark:text-warning-500' :
+                      'text-error-600 dark:text-error-500'
+                    }`}>
+                      {Math.round(model.formatValidityRate)}%
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">N/A</span>
+                  )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                <td className="px-3 py-4 whitespace-nowrap">
+                  {model.avgNullCount !== undefined && model.avgNullCount > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-500">
+                        ⚠️ {model.avgNullCount}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">nulls/doc</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-400 dark:text-gray-500">0</span>
+                  )}
+                </td>
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                   {model.avgExecutionTime}ms
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                   ${model.totalCost.toFixed(6)}
                 </td>
               </tr>
@@ -684,6 +752,7 @@ interface DetailedOutput {
   tokensOut: number | null
   costIn: number | null
   costOut: number | null
+  nullCount: number
   errorMessage: string | null
   validationPassed: boolean
 }
@@ -708,6 +777,10 @@ function DetailedResultsTab({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedOutputId, setExpandedOutputId] = useState<string | null>(null)
+
+  // Collapsible sections state (stores outputId -> boolean mapping)
+  const [expandedRawResponse, setExpandedRawResponse] = useState<Record<string, boolean>>({})
+  const [expandedExtractedJson, setExpandedExtractedJson] = useState<Record<string, boolean>>({})
 
   // Filters
   const [filterModel, setFilterModel] = useState<string>('all')
@@ -879,10 +952,11 @@ function DetailedResultsTab({
                       <strong>Document:</strong> {output.documentFilename}
                     </p>
                     <div className="flex gap-4 text-xs text-gray-500">
-                      <span>⏱️ {output.executionTimeMs}ms</span>
-                      {output.tokensIn && <span>📥 {output.tokensIn} tokens</span>}
-                      {output.tokensOut && <span>📤 {output.tokensOut} tokens</span>}
-                      {totalCost > 0 && <span>💰 ${totalCost.toFixed(6)}</span>}
+                      <span>Time: {output.executionTimeMs}ms</span>
+                      {output.tokensIn && <span>Prompt: {output.tokensIn}</span>}
+                      {output.tokensOut && <span>Response: {output.tokensOut}</span>}
+                      <span>Nulls: {output.nullCount}</span>
+                      {totalCost > 0 && <span>Cost: ${totalCost.toFixed(6)}</span>}
                     </div>
                   </div>
                   <div className="text-gray-400">
@@ -949,42 +1023,7 @@ function DetailedResultsTab({
                     </div>
                   )}
 
-                  {/* Prompts Section */}
-                  <div>
-                    <h5 className="text-sm font-semibold text-gray-900 mb-2">System Prompt</h5>
-                    <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap">
-                      {data.batchJob.systemPrompt}
-                    </pre>
-                  </div>
-
-                  <div>
-                    <h5 className="text-sm font-semibold text-gray-900 mb-2">User Prompt</h5>
-                    <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
-                      {data.batchJob.userPrompt}
-                    </pre>
-                  </div>
-
-                  {/* Raw Response */}
-                  {output.rawResponse && (
-                    <div>
-                      <h5 className="text-sm font-semibold text-gray-900 mb-2">Raw LLM Response</h5>
-                      <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
-                        {output.rawResponse}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* Extracted JSON */}
-                  {output.jsonPayload && (
-                    <div>
-                      <h5 className="text-sm font-semibold text-gray-900 mb-2">Extracted JSON</h5>
-                      <pre className="p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
-                        {JSON.stringify(output.jsonPayload, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* Schema Comparison */}
+                  {/* Schema Comparison - MOVED TO TOP */}
                   {data.batchJob.validationSchema && output.jsonPayload && (
                     <div>
                       <h5 className="text-sm font-semibold text-gray-900 mb-3">Schema Comparison</h5>
@@ -993,6 +1032,63 @@ function DetailedResultsTab({
                         jsonPayload={output.jsonPayload}
                         validationDetails={output.validationDetails}
                       />
+                    </div>
+                  )}
+
+                  {/* Raw Response - COLLAPSIBLE */}
+                  {output.rawResponse && (
+                    <div>
+                      <button
+                        onClick={() => setExpandedRawResponse(prev => ({
+                          ...prev,
+                          [output.outputId]: !prev[output.outputId]
+                        }))}
+                        className="w-full flex items-center justify-between p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                      >
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Raw LLM Response</h5>
+                        <svg
+                          className={`w-4 h-4 transition-transform text-gray-600 dark:text-gray-400 ${expandedRawResponse[output.outputId] ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {expandedRawResponse[output.outputId] && (
+                        <pre className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
+                          {output.rawResponse}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Extracted JSON - COLLAPSIBLE */}
+                  {output.jsonPayload && (
+                    <div>
+                      <button
+                        onClick={() => setExpandedExtractedJson(prev => ({
+                          ...prev,
+                          [output.outputId]: !prev[output.outputId]
+                        }))}
+                        className="w-full flex items-center justify-between p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                      >
+                        <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Extracted JSON</h5>
+                        <svg
+                          className={`w-4 h-4 transition-transform text-gray-600 dark:text-gray-400 ${expandedExtractedJson[output.outputId] ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {expandedExtractedJson[output.outputId] && (
+                        <pre
+                          className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-xs text-gray-700 dark:text-gray-300 overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto"
+                          dangerouslySetInnerHTML={{ __html: highlightNulls(output.jsonPayload) }}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

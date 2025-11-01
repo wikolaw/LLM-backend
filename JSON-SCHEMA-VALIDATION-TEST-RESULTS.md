@@ -1,8 +1,8 @@
 # JSON Schema Validation System - v2.0 Test Results
 
-**Test Date:** 2025-10-24T08:54:50.941Z
+**Test Date:** 2025-10-27T08:03:06.385Z
 **Test Document:** test-contract-arlanda.txt (Swedish railway contract)
-**Models Tested:** 3
+**Models Tested:** 0
 **Output Format:** JSON
 
 ---
@@ -19,8 +19,8 @@
 ## 📊 Results Summary
 
 ### Validation Rate
-- **Validated Models:** 0/3 (0.0%)
-- **Failed Models:** 0/3 (100.0%)
+- **Validated Models:** 0/0 (0.0%)
+- **Failed Models:** 0/0 (100.0%)
 
 ### Model Results
 | Model | Status | Execution Time |

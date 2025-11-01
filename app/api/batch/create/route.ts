@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const {
       documentIds,
       name,
+      originalUserInput,
       systemPrompt,
       userPrompt,
       outputFormat,
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         name,
+        original_user_input: originalUserInput || null,
         system_prompt: systemPrompt,
         user_prompt: userPrompt,
         output_format: outputFormat,

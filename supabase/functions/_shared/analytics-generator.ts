@@ -35,6 +35,8 @@ export interface Output {
   formats_valid: boolean | null
   validation_details: any | null
   prompt_guidance: string[] | null
+  // Null value tracking
+  null_count: number | null
 }
 
 export interface Run {
@@ -85,6 +87,9 @@ export interface ModelAnalytics {
     formatsValid: number
     commonGuidance: string[]
   }
+  // Null value tracking
+  avgNullCount: number
+  totalNullCount: number
 }
 
 export interface Pattern {
@@ -311,6 +316,15 @@ export function calculateModelAnalytics(
   const attributeValidityRate = totalRuns > 0 ? Math.round((attributesValidCount / totalRuns) * 100) : 0
   const formatValidityRate = totalRuns > 0 ? Math.round((formatsValidCount / totalRuns) * 100) : 0
 
+  // Calculate average and total null count
+  const nullCounts = modelOutputs
+    .map(o => o.null_count)
+    .filter((n): n is number => n !== null && n !== undefined)
+  const totalNullCount = nullCounts.reduce((sum, n) => sum + n, 0)
+  const avgNullCount = nullCounts.length > 0
+    ? Number((nullCounts.reduce((sum, n) => sum + n, 0) / nullCounts.length).toFixed(2))
+    : 0
+
   return {
     model,
     successCount,
@@ -330,7 +344,10 @@ export function calculateModelAnalytics(
       attributesValid: attributesValidCount,
       formatsValid: formatsValidCount,
       commonGuidance
-    }
+    },
+    // Null value tracking
+    avgNullCount,
+    totalNullCount
   }
 }
 

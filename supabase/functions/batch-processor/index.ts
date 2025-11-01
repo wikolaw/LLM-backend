@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { validateResponse, getValidationDetails } from '../_shared/enhanced-validator.ts'
 import type { OutputFormat } from '../_shared/schema-validator.ts'
 import { generateBatchAnalytics } from '../_shared/analytics-generator.ts'
+import { countNullValues } from '../_shared/null-counter.ts'
 
 interface BatchProcessorRequest {
   batchJobId: string
@@ -401,6 +402,9 @@ serve(async (req) => {
             const costIn = tokensIn * model.priceIn
             const costOut = tokensOut * model.priceOut
 
+            // Count null values in the output
+            const nullCount = jsonPayload ? countNullValues(jsonPayload) : 0
+
             // Save output to database with 3-level validation tracking
             await supabaseClient.from('outputs').insert({
               run_id: runId,
@@ -422,7 +426,9 @@ serve(async (req) => {
               attributes_valid: validationResult.attributesValid,
               formats_valid: validationResult.formatsValid,
               validation_details: getValidationDetails(validationResult),
-              prompt_guidance: validationResult.guidance
+              prompt_guidance: validationResult.guidance,
+              // Null value tracking
+              null_count: nullCount
             })
 
             if (validationPassed) successfulRuns++
@@ -495,7 +501,9 @@ serve(async (req) => {
                 errorCategory: errorInfo.category,
                 isRetryable: errorInfo.isRetryable
               },
-              prompt_guidance: errorInfo.guidance
+              prompt_guidance: errorInfo.guidance,
+              // Null value tracking (0 for errors)
+              null_count: 0
             })
 
             failedRuns++
@@ -599,7 +607,9 @@ serve(async (req) => {
             json_validity_rate: modelAnalytic.jsonValidityRate,
             attribute_validity_rate: modelAnalytic.attributeValidityRate,
             format_validity_rate: modelAnalytic.formatValidityRate,
-            validation_breakdown: modelAnalytic.validationBreakdown
+            validation_breakdown: modelAnalytic.validationBreakdown,
+            // Null value tracking
+            avg_null_count: modelAnalytic.avgNullCount
           })
 
           if (upsertError) {

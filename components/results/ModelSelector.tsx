@@ -11,9 +11,14 @@ type Model = Database['public']['Tables']['models']['Row']
 interface ModelSelectorProps {
   onSelectionChange: (selectedModels: Model[]) => void
   estimatedTokens?: number
+  initialSelectedModels?: Model[]
 }
 
-export function ModelSelector({ onSelectionChange, estimatedTokens = 1000 }: ModelSelectorProps) {
+export function ModelSelector({
+  onSelectionChange,
+  estimatedTokens = 1000,
+  initialSelectedModels
+}: ModelSelectorProps) {
   const [models, setModels] = useState<Model[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -25,6 +30,22 @@ export function ModelSelector({ onSelectionChange, estimatedTokens = 1000 }: Mod
   useEffect(() => {
     fetchModels()
   }, [])
+
+  // Load initial selected models for cloned batches
+  useEffect(() => {
+    if (initialSelectedModels && initialSelectedModels.length > 0 && models.length > 0) {
+      console.log('🎯 ModelSelector: Loading cloned model selection', initialSelectedModels)
+
+      const initialIds = new Set(initialSelectedModels.map(m => m.id))
+      setSelectedIds(initialIds)
+
+      // Immediately notify parent with initial selection
+      onSelectionChange(initialSelectedModels)
+
+      console.log('✅ ModelSelector: Cloned model selection loaded')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSelectedModels, models])
 
   const fetchModels = async () => {
     try {

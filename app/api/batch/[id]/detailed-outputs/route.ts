@@ -116,6 +116,7 @@ export async function GET(
         tokensOut: output.tokens_out,
         costIn: output.cost_in ? parseFloat(output.cost_in.toString()) : null,
         costOut: output.cost_out ? parseFloat(output.cost_out.toString()) : null,
+        nullCount: output.null_count || 0,
         errorMessage: output.error_message,
         validationPassed: output.validation_passed
       }

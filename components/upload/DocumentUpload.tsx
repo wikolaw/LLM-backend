@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { createClient } from '@/lib/supabase/client'
 
@@ -14,16 +14,46 @@ interface UploadedDocument {
 
 interface DocumentUploadProps {
   onUploadComplete: (documentIds: string[]) => void
+  initialDocuments?: Array<{
+    id: string
+    filename: string
+    char_count: number
+  }>
 }
 
-export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
+export function DocumentUpload({ onUploadComplete, initialDocuments }: DocumentUploadProps) {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocument[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
 
   const supabase = createClient()
 
+  // Load initial documents for cloned batches
+  useEffect(() => {
+    if (initialDocuments && initialDocuments.length > 0) {
+      console.log('📄 DocumentUpload: Loading cloned documents', initialDocuments)
+
+      const docs: UploadedDocument[] = initialDocuments.map(doc => ({
+        id: doc.id,
+        filename: doc.filename,
+        charCount: doc.char_count,
+        status: 'completed' as const
+      }))
+
+      setUploadedDocs(docs)
+
+      // Immediately notify parent with document IDs
+      onUploadComplete(initialDocuments.map(d => d.id))
+
+      console.log('✅ DocumentUpload: Cloned documents loaded')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDocuments])
+
   const removeDocument = (docId: string) => {
     setUploadedDocs(docs => docs.filter(d => d.id !== docId))
+    // Update parent with remaining document IDs
+    const remainingIds = uploadedDocs.filter(d => d.id !== docId).map(d => d.id)
+    onUploadComplete(remainingIds)
   }
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {

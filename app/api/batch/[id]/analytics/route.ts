@@ -180,7 +180,10 @@ export async function GET(
         jsonValidityRate: a.json_validity_rate ? parseFloat(a.json_validity_rate.toString()) : undefined,
         attributeValidityRate: a.attribute_validity_rate ? parseFloat(a.attribute_validity_rate.toString()) : undefined,
         formatValidityRate: a.format_validity_rate ? parseFloat(a.format_validity_rate.toString()) : undefined,
-        validationBreakdown: a.validation_breakdown as any
+        validationBreakdown: a.validation_breakdown as any,
+        // Null value tracking
+        avgNullCount: a.avg_null_count !== null && a.avg_null_count !== undefined ? parseFloat(a.avg_null_count.toString()) : undefined,
+        totalNullCount: a.total_null_count || 0
       })),
       documentResults,
       attributeFailures

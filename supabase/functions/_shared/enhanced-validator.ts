@@ -4,8 +4,8 @@
  * Version 3.0
  */
 
-import { validateAgainstSchema, type OutputFormat, type ValidationError as AjvError } from './schema-validator'
-import { generatePromptGuidance } from './guidance-generator'
+import { validateAgainstSchema, type OutputFormat, type ValidationError as AjvError } from './schema-validator.ts'
+import { generatePromptGuidance } from './guidance-generator.ts'
 
 export interface EnhancedValidationResult {
   // Overall validation status
